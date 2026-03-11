@@ -1,0 +1,16 @@
+## Descripción
+Cada carpeta (`ej1` a `ej10`) contiene la resolución de un ejercicio diferente.  
+Dentro de cada una se encuentran los archivos necesarios para ejecutar o revisar la solución.
+```
+Programacion
+├── ej1
+├── ej2
+├── ej3
+├── ej4
+├── ej5
+├── ej6
+├── ej7
+├── ej8
+├── ej9
+└── ej10
+```
