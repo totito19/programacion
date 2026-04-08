@@ -31,6 +31,19 @@ header H1:hover {
     color: #ff9500; /* Cambia el color al pasar el mouse por encima */
     transition: color 0.3s ease; /* Agrega una transición suave al cambiar el color */
 }
+header nav ul {
+    list-style: none;
+    margin-top: 20px;
+    background-color: #3f3f61;
+    display: inline-block;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border-color: lch(100% 0.01 296.81);
+}
+header nav ul li {
+    display: inline-block;
+    margin-right: 20px;
+}
 /*SECCIONES en general*/
 section {
     padding: 60px 40px;
