@@ -1,0 +1,7 @@
+8
+
+Muy buen trabajo en general. Sin embargo, hay una pequeña confusión entre main y article.
+
+Toda página web debe tener un main, ya que representa el contenido principal. Por otro lado, article es una parte independiente del contenido de la página, como por ejemplo una noticia o un elemento que podría existir por sí solo.
+
+Te recomiendo reforzar esta diferencia, pero vas por muy buen camino.
