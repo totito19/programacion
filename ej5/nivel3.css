@@ -1,0 +1,38 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: sans-serif;
+  background: #f5f5f5;
+  padding: 24px;
+}
+.cuadricula-estadisticas {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  background: #1a2238;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.tarjeta-estadistica {
+  padding: 20px 12px;
+  text-align: center;
+  background: #1a2238;
+}
+
+.tarjeta-estadistica.destacada {
+  background: #e0365a;
+}
+
+.numero {
+  font-size: 28px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.etiqueta {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
