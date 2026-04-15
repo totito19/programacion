@@ -1,0 +1,38 @@
+body {
+    font-family: Arial, sans-serif;
+    background: #eee;
+    text-align: center;
+}
+
+.titulo {
+    background: lime;
+    padding: 10px;
+}
+
+.contenedor {
+    margin-top: 40px;
+}
+
+.botones {
+    margin: 30px;
+}
+
+.btn {
+    padding: 12px 25px;
+    border: none;
+    border-radius: 8px;
+    margin: 10px;
+    cursor: pointer;
+    color: white;
+    font-size: 16px;
+    transition: 0.3s;
+}
+
+.aceptar { background: #2ecc71; }
+.cancelar { background: #f5b041; }
+.eliminar { background: #e74c3c; }
+
+.btn:hover {
+    transform: scale(1.1);
+    opacity: 0.8;
+}
