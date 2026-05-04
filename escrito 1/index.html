@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Starbucks Rewards</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#contenido">Skip to Main Content</a>
+
+    <!-- Tomas: Header principal y navegacion superior -->
+    <header class="site-header">
+      <div class="topbar">
+        <a class="brand" href="#" aria-label="Starbucks">
+          <img src="starbucks-assets/Starbucks_Corporation_Logo_2011.svg.png" alt="Starbucks">
+        </a>
+
+        <nav class="main-nav" aria-label="Navegacion principal">
+          <a href="#">Menu</a>
+          <a href="#">Rewards</a>
+          <a href="#">Gift Cards</a>
+        </nav>
+
+        <div class="header-actions">
+          <a class="store-link" href="#">Find a store</a>
+          <a class="btn btn-outline" href="#">Sign in</a>
+          <a class="btn btn-dark" href="#">Join now</a>
+        </div>
+      </div>
+
+      <div class="rewards-bar">
+        <p>Starbucks&reg; Rewards</p>
+      </div>
+    </header>
+
+    <main id="contenido">
+      <!-- Tomas: Hero con estrella grande de la referencia -->
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <h1 id="hero-title">Free coffee<br>is a tap away</h1>
+          <p>Join now to start earning Rewards.</p>
+          <a class="btn btn-primary" href="#">Join now</a>
+          <p class="hero-note">Or <a href="#">join in the app</a> for the best experience</p>
+        </div>
+
+        <div class="hero-star" aria-hidden="true">
+          <span class="ring ring-gold outer"></span>
+          <span class="ring ring-dark second"></span>
+          <span class="ring ring-mint third"></span>
+          <span class="ring ring-green fourth"></span>
+          <span class="ring ring-gold fifth"></span>
+          <span class="ring ring-dark sixth"></span>
+          <span class="ring ring-mint seventh"></span>
+          <span class="ring ring-green eighth"></span>
+          <span class="ring ring-gold ninth"></span>
+        </div>
+      </section>
+
+      <!-- Tomas: Pasos para comenzar -->
+      <section class="steps" aria-labelledby="steps-title">
+        <div class="section-heading">
+          <h2 id="steps-title">Getting started is easy</h2>
+          <p>Earn Stars and get rewarded in a few easy steps.</p>
+        </div>
+
+        <div class="step-list">
+          <article class="step-card">
+            <span class="step-number">1</span>
+            <h3>Create an account</h3>
+            <p>To get started, <a href="#">join now</a>. You can also <a href="#">join in the app</a> to get access to the full range of Starbucks&reg; Rewards benefits.</p>
+          </article>
+
+          <article class="step-card">
+            <span class="step-number">2</span>
+            <h3>Order and pay how you&rsquo;d like</h3>
+            <p>Use cash, credit/debit card or save some time and pay right through the app. You&rsquo;ll collect Stars all ways. <a href="#">Learn how</a></p>
+          </article>
+
+          <article class="step-card">
+            <span class="step-number">3</span>
+            <h3>Earn Stars, get Rewards</h3>
+            <p>As you earn Stars, you can redeem them for Rewards&mdash;like free food, drinks, and more. Start redeeming with as little as 25 Stars!</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- Tomas: Tabs de recompensas -->
+      <section class="favorites" aria-labelledby="favorites-title">
+        <div class="section-heading">
+          <h2 id="favorites-title">Get your favorites for free</h2>
+        </div>
+
+        <div class="reward-tabs">
+          <input type="radio" name="stars" id="stars-25" checked>
+          <input type="radio" name="stars" id="stars-50">
+          <input type="radio" name="stars" id="stars-150">
+          <input type="radio" name="stars" id="stars-200">
+          <input type="radio" name="stars" id="stars-400">
+
+          <div class="tab-labels" role="tablist" aria-label="Opciones de estrellas">
+            <label for="stars-25" role="tab">25<span>&#9733;</span></label>
+            <label for="stars-50" role="tab">50<span>&#9733;</span></label>
+            <label for="stars-150" role="tab">150<span>&#9733;</span></label>
+            <label for="stars-200" role="tab">200<span>&#9733;</span></label>
+            <label for="stars-400" role="tab">400<span>&#9733;</span></label>
+          </div>
+
+          <div class="tab-panel panel-25">
+            <div class="drink-pair" aria-hidden="true">
+              <span class="espresso"></span>
+              <span class="latte"></span>
+            </div>
+            <div class="reward-copy">
+              <h3>Customize your drink</h3>
+              <p>Make your drink just right with an extra espresso shot, dairy substitute or a dash of your favorite syrup.</p>
+            </div>
+          </div>
+
+          <div class="tab-panel panel-50">
+            <div class="drink-pair bakery-pair" aria-hidden="true">
+              <span class="espresso"></span>
+              <span class="bakery"></span>
+            </div>
+            <div class="reward-copy">
+              <h3>Brewed hot coffee, bakery item or hot tea</h3>
+              <p>Pair a simple favorite with your day and redeem Stars for something warm.</p>
+            </div>
+          </div>
+
+          <div class="tab-panel panel-150">
+            <div class="drink-pair cold-cup" aria-hidden="true">
+              <span class="latte"></span>
+            </div>
+            <div class="reward-copy">
+              <h3>Handcrafted drink, hot breakfast or parfait</h3>
+              <p>Treat yourself to a handcrafted drink, a breakfast sandwich or a fresh parfait.</p>
+            </div>
+          </div>
+
+          <div class="tab-panel panel-200">
+            <div class="drink-pair lunch-box" aria-hidden="true">
+              <span></span>
+            </div>
+            <div class="reward-copy">
+              <h3>Salad, sandwich or protein box</h3>
+              <p>Enjoy something hearty when you redeem a higher Star balance.</p>
+            </div>
+          </div>
+
+          <div class="tab-panel panel-400">
+            <div class="drink-pair merch-cup" aria-hidden="true">
+              <span></span>
+            </div>
+            <div class="reward-copy">
+              <h3>Select merchandise or at-home coffee</h3>
+              <p>Save Stars for signature cups, tumblers or coffee to brew at home.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tomas: Beneficios extra -->
+      <section class="extras" aria-labelledby="extras-title">
+        <div class="section-heading">
+          <h2 id="extras-title">Endless Extras</h2>
+          <p>Joining Starbucks&reg; Rewards means unlocking access to exclusive benefits. Say hello to easy ordering, tasty Rewards and&mdash;yes, free coffee.</p>
+        </div>
+
+        <div class="extra-list">
+          <article class="extra-card">
+            <div class="extra-art fun" aria-hidden="true">
+              <span></span>
+            </div>
+            <h3>Fun freebies</h3>
+            <p>Not only can you earn free coffee, look forward to a birthday treat plus coffee and tea refills.</p>
+            <a href="#">Learn more</a>
+          </article>
+
+          <article class="extra-card">
+            <div class="extra-art order" aria-hidden="true">
+              <span></span>
+            </div>
+            <h3>Order &amp; pay ahead</h3>
+            <p>Enjoy the convenience of in-store, curbside or drive-thru pickup at select stores.</p>
+            <a href="#">Learn more</a>
+          </article>
+
+          <article class="extra-card">
+            <div class="extra-art faster" aria-hidden="true">
+              <span></span>
+            </div>
+            <h3>Get to free faster</h3>
+            <p>Earn Stars even quicker with Bonus Star challenges, Double Star Days and exciting games.</p>
+            <a href="#">Learn more</a>
+          </article>
+        </div>
+      </section>
+
+      <!-- Tomas: Formas de pago para acumular Stars -->
+      <section class="payment" aria-labelledby="payment-title">
+        <div class="section-heading">
+          <h2 id="payment-title">Cash or card, you earn Stars</h2>
+          <p>No matter how you pay, you can earn Stars with your morning coffee. Those Stars add up to (really delicious) Rewards.</p>
+        </div>
+
+        <div class="payment-grid">
+          <div class="payment-row">
+            <div class="rate">
+              <strong>1&#9733; per dollar</strong>
+              <span>Pay as you go</span>
+            </div>
+            <div class="payment-option">
+              <div class="pay-art scan" aria-hidden="true"></div>
+              <div>
+                <h3>Scan and pay separately</h3>
+                <p>Use cash or credit/debit card at the register.</p>
+              </div>
+            </div>
+            <div class="payment-option">
+              <div class="pay-art save" aria-hidden="true"></div>
+              <div>
+                <h3>Save payment in the app</h3>
+                <p>Check-out faster by saving a credit/debit card or PayPal to your account. You&rsquo;ll be able to order ahead or scan and pay at the register in one step.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="payment-row">
+            <div class="rate">
+              <strong>2&#9733; per dollar</strong>
+              <span>Add funds in the app</span>
+            </div>
+            <div class="payment-option">
+              <div class="pay-art preload" aria-hidden="true"></div>
+              <div>
+                <h3>Preload</h3>
+                <p>To save time and earn Stars twice as fast, add money to your digital Starbucks Card using any payment option. Scan and pay in one step or order ahead in the app.</p>
+              </div>
+            </div>
+            <div class="payment-option">
+              <div class="pay-art gift" aria-hidden="true"></div>
+              <div>
+                <h3>Register your gift card</h3>
+                <p>Then use it to pay through the app. You can even consolidate balances from multiple cards in one place.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="payment-row payment-row-last">
+            <div class="rate">
+              <strong>Up to 3&#9733; per dollar</strong>
+              <span>With Starbucks&reg; Rewards Visa&reg; Card</span>
+            </div>
+            <div class="payment-option visa-option">
+              <div class="pay-art visa" aria-hidden="true"></div>
+              <div>
+                <h3>Earn Stars even faster</h3>
+                <p>Earn Stars on all purchases you make with our <a href="#">credit card</a> in and outside of Starbucks. Earn 1 Star per $1 when you digitally preload your Starbucks Card with your Starbucks&reg; Rewards Visa Card, and earn 2 Stars per $1 when you pay with that preloaded Starbucks Card.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Tomas: Footer semantico oculto para no alterar la replica visual de referencia -->
+    <footer class="visually-hidden">
+      Proyecto de practica frontend. No afiliado a Starbucks.
+    </footer>
+  </body>
+</html>
