@@ -1,0 +1,2103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Twink Fit — Calculadora de Macros y Calorías</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<!-- TensorFlow.js + Pose Detection (lazy-loaded para no ralentizar el inicio) -->
+<script>
+  // Flag para saber si TF.js ya está cargado
+  window._tfReady = false;
+  window._tfLoading = false;
+  function loadTensorFlow() {
+    if (window._tfReady) return Promise.resolve();
+    if (window._tfLoading) return window._tfLoadPromise;
+    window._tfLoading = true;
+    window._tfLoadPromise = new Promise((resolve, reject) => {
+      const scripts = [
+        'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.22.0/dist/tf-core.min.js',
+        'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter@4.22.0/dist/tf-converter.min.js',
+        'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.22.0/dist/tf-backend-webgl.min.js',
+        'https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js'
+      ];
+      let i = 0;
+      function next() {
+        if (i >= scripts.length) {
+          window._tfReady = true;
+          resolve();
+          return;
+        }
+        const s = document.createElement('script');
+        s.src = scripts[i++];
+        s.onload = next;
+        s.onerror = () => reject(new Error('No se pudo cargar TensorFlow.js. Verificá tu conexión.'));
+        document.head.appendChild(s);
+      }
+      next();
+    });
+    return window._tfLoadPromise;
+  }
+</script>
+<style>
+  :root {
+    --primary-dark: #FFF0F5;       /* fondo principal muy claro */
+    --primary: #FFFFFF;            /* tarjetas e inputs */
+    --secondary: #FCE4EC;           /* superficies suaves */
+    --accent: #FF8FB1;              /* rosa pastel principal */
+    --accent-light: #FFC1D9;        /* rosa pastel claro */
+    --success: #B8E1C9;             /* verde menta pastel */
+    --warning: #FFD8A8;             /* durazno pastel */
+    --danger: #F4A6A6;              /* coral pastel */
+    --info: #C8B6E2;                /* lavanda pastel */
+    --text-primary: #4A2C3D;        /* burdeos suave para texto */
+    --text-secondary: #9B7A8A;      /* rosa apagado para texto secundario */
+    --border: #F8D7E3;              /* bordes rosa muy claro */
+    --shadow: 0 10px 30px rgba(255, 143, 177, 0.18);
+    --radius: 16px;
+    --transition: all 0.3s ease;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body { min-height: 100%; }
+
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+    background:
+      radial-gradient(1200px 600px at 10% -10%, rgba(255, 143, 177, 0.18), transparent 60%),
+      radial-gradient(1000px 500px at 110% 10%, rgba(200, 182, 226, 0.18), transparent 60%),
+      linear-gradient(180deg, #FFF5F8 0%, #FFE8F0 100%);
+    color: var(--text-primary);
+    line-height: 1.5;
+    padding: 24px 16px 60px;
+    min-height: 100vh;
+  }
+
+  .container { max-width: 1300px; margin: 0 auto; }
+
+  /* HEADER */
+  header {
+    text-align: center;
+    margin-bottom: 30px;
+    animation: fadeInDown 0.6s ease;
+  }
+  header .logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+  }
+  header .logo .badge {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-light));
+    display: grid; place-items: center; font-size: 22px;
+    box-shadow: 0 6px 20px rgba(255, 143, 177, 0.55);
+  }
+  header h1 {
+    font-size: clamp(1.8em, 4vw, 3em);
+    font-weight: 900;
+    background: linear-gradient(135deg, #E91E63, var(--accent));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin-top: 4px;
+  }
+  header p { color: var(--text-secondary); margin-top: 6px; font-size: 1.02em; }
+
+  /* GRID */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px;
+    align-items: stretch;
+  }
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+
+  /* CARDS */
+  .card {
+    background: linear-gradient(180deg, #FFFFFF 0%, #FFF8FB 100%);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(6px);
+    animation: fadeInUp 0.5s ease;
+  }
+  .card h2 {
+    font-size: 1.5em;
+    margin-bottom: 18px;
+    color: var(--text-primary);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .card h2::before {
+    content: ''; width: 4px; height: 22px; border-radius: 4px;
+    background: linear-gradient(180deg, var(--accent), var(--success));
+  }
+
+  .form-section { margin-bottom: 20px; }
+  .form-section h3 {
+    font-size: 0.92em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+  }
+
+  /* Gender */
+  .gender-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .gender-btn {
+    padding: 14px;
+    border: 1.5px solid var(--border);
+    background: var(--primary);
+    color: var(--text-primary);
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: 600;
+    transition: var(--transition);
+  }
+  .gender-btn:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .gender-btn.active {
+    background: linear-gradient(135deg, var(--accent), var(--accent-light));
+    border-color: transparent;
+    color: #FFFFFF;
+    box-shadow: 0 6px 20px rgba(255, 143, 177, 0.45);
+  }
+
+  /* Inputs */
+  .input-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  @media (max-width: 520px) { .input-row { grid-template-columns: 1fr; } }
+  .field { display: flex; flex-direction: column; }
+  .field label {
+    font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.8px;
+    color: var(--text-secondary); margin-bottom: 6px;
+  }
+  input[type="number"], select {
+    padding: 12px 14px;
+    background: var(--primary);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    color: var(--text-primary);
+    font-size: 1em;
+    transition: var(--transition);
+    width: 100%;
+  }
+  input[type="number"]:focus, select:focus {
+    outline: none; border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(255, 143, 177, 0.18);
+  }
+  /* Hide spinner */
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; }
+
+  /* Slider */
+  .slider-wrap {
+    display: flex; flex-direction: column; gap: 10px;
+    background: var(--primary);
+    border: 1.5px solid var(--border);
+    padding: 14px; border-radius: 10px;
+  }
+  .slider-top {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 0.95em;
+  }
+  .slider-value {
+    background: linear-gradient(135deg, var(--accent), var(--accent-light));
+    color: #FFFFFF; padding: 4px 12px; border-radius: 20px;
+    font-weight: 700; min-width: 60px; text-align: center;
+  }
+  input[type="range"] {
+    -webkit-appearance: none; width: 100%; height: 6px; border-radius: 4px;
+    background: var(--secondary); outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent-light));
+    cursor: pointer; border: 3px solid #fff;
+    box-shadow: 0 2px 8px rgba(255, 143, 177, 0.55);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--accent); cursor: pointer; border: 3px solid #fff;
+  }
+
+  /* Camera */
+  .camera-section {
+    display: flex; flex-direction: column; gap: 10px;
+    margin-top: 8px;
+  }
+  .camera-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn-secondary {
+    padding: 10px 16px;
+    background: var(--secondary);
+    color: var(--text-primary);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer; font-weight: 600; font-size: 0.92em;
+    transition: var(--transition);
+    flex: 1; min-width: 120px;
+  }
+  .btn-secondary:hover { border-color: var(--info); color: var(--info); }
+  #video, #capturedImage {
+    width: 100%; max-height: 240px; border-radius: 10px;
+    object-fit: cover; border: 1.5px solid var(--border);
+    display: none; background: #FFF5F8;
+  }
+  #canvas { display: none; }
+
+  /* Estimación */
+  .estimate-panel {
+    background: linear-gradient(135deg, rgba(255, 143, 177, 0.10), rgba(200, 182, 226, 0.10));
+    border: 1.5px solid var(--accent);
+    border-radius: 12px;
+    padding: 14px;
+    margin-top: 4px;
+    animation: fadeIn 0.4s ease;
+  }
+  .estimate-header {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+    font-size: 0.95em;
+  }
+  .estimate-icon { font-size: 1.2em; }
+  .estimate-range {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 6px;
+  }
+  .estimate-label { font-size: 0.88em; color: var(--text-secondary); }
+  .estimate-value {
+    font-size: 1.3em; font-weight: 800;
+    background: linear-gradient(135deg, #E91E63, var(--accent));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .estimate-note {
+    font-size: 0.82em; color: var(--text-secondary);
+    line-height: 1.4; margin-bottom: 10px;
+  }
+  .btn-mini {
+    width: 100%;
+    padding: 8px 12px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-light));
+    color: #FFFFFF;
+    border: none; border-radius: 8px;
+    cursor: pointer; font-weight: 600; font-size: 0.88em;
+    transition: var(--transition);
+  }
+  .btn-mini:hover { transform: translateY(-1px); }
+
+  /* Calc button */
+  .btn-primary {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-light));
+    color: #FFFFFF;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 1.05em;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-top: 8px;
+    transition: var(--transition);
+    box-shadow: 0 6px 20px rgba(255, 143, 177, 0.45);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(255, 143, 177, 0.55); }
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-ghost {
+    width: 100%; margin-top: 8px;
+    padding: 12px;
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1.5px dashed var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.92em; font-weight: 500;
+    transition: var(--transition);
+  }
+  .btn-ghost:hover { color: var(--danger); border-color: var(--danger); }
+
+  /* Alert */
+  .alert {
+    padding: 12px 16px;
+    border-radius: 10px;
+    margin-top: 12px;
+    font-size: 0.92em;
+    border-left: 4px solid var(--warning);
+    background: rgba(255, 216, 168, 0.35);
+    color: var(--text-primary);
+    display: none;
+  }
+  .alert.error { border-left-color: var(--danger); background: rgba(244, 166, 166, 0.30); }
+  .alert.show { display: block; animation: fadeIn 0.3s ease; }
+
+  /* Chart card */
+  .chart-card .chart-wrap {
+    position: relative;
+    height: 340px;
+    display: grid; place-items: center;
+  }
+  .chart-empty {
+    color: var(--text-secondary);
+    text-align: center; padding: 40px 20px;
+  }
+  .chart-empty .icon { font-size: 3em; opacity: 0.4; margin-bottom: 10px; }
+
+  /* RESULTS */
+  #resultsContainer.hidden { display: none; }
+  #resultsContainer { margin-top: 28px; display: grid; gap: 22px; }
+
+  .result-card {
+    background: linear-gradient(180deg, #FFFFFF 0%, #FFF8FB 100%);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    box-shadow: var(--shadow);
+    animation: fadeInUp 0.5s ease;
+  }
+  .result-card h3 {
+    font-size: 1.3em; margin-bottom: 18px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .result-card h3::before {
+    content: ''; width: 4px; height: 20px; border-radius: 4px;
+    background: linear-gradient(180deg, var(--success), var(--info));
+  }
+
+  /* Stats Grid */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 14px;
+  }
+  .stat-box {
+    background: var(--primary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+    transition: var(--transition);
+  }
+  .stat-box:hover { transform: translateY(-2px); border-color: var(--accent); }
+  .stat-label {
+    font-size: 0.78em; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--text-secondary); margin-bottom: 8px;
+  }
+  .stat-value {
+    font-size: 1.8em; font-weight: 900;
+    background: linear-gradient(135deg, #E91E63, var(--accent));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .stat-sub { font-size: 0.78em; color: var(--text-secondary); margin-top: 4px; }
+  .stat-sub.normal { color: #4A9D6E; }
+  .stat-sub.warn { color: #D4843F; }
+  .stat-sub.danger { color: #C25656; }
+
+  /* Tabs */
+  .macros-tabs {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+    background: var(--primary); padding: 6px; border-radius: 12px;
+    border: 1px solid var(--border); margin-bottom: 18px;
+  }
+  .tab-button {
+    padding: 12px; border: none; background: transparent;
+    color: var(--text-secondary); cursor: pointer;
+    font-weight: 600; font-size: 0.95em; border-radius: 8px;
+    transition: var(--transition);
+  }
+  .tab-button.active {
+    background: linear-gradient(135deg, var(--accent), var(--accent-light));
+    color: #FFFFFF;
+    box-shadow: 0 4px 12px rgba(255, 143, 177, 0.45);
+  }
+
+  .tab-content { display: none; animation: fadeIn 0.3s ease; }
+  .tab-content.active { display: block; }
+
+  .tdee-section {
+    text-align: center; padding: 18px;
+    background: var(--primary);
+    border: 1px solid var(--border);
+    border-radius: 12px; margin-bottom: 16px;
+  }
+  .tdee-section h4 {
+    font-size: 0.85em; text-transform: uppercase; letter-spacing: 1.2px;
+    color: var(--text-secondary); margin-bottom: 6px;
+  }
+  .tdee-value {
+    font-size: 2.6em; font-weight: 900;
+    background: linear-gradient(135deg, #E91E63, var(--accent));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .tdee-section .unit { font-size: 0.9em; color: var(--text-secondary); }
+
+  .macro-item {
+    background: var(--primary);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    transition: var(--transition);
+  }
+  .macro-item:hover { transform: translateX(3px); }
+  .macro-item.protein  { border-left-color: var(--danger); }
+  .macro-item.carbs    { border-left-color: var(--warning); }
+  .macro-item.fats     { border-left-color: var(--success); }
+
+  .macro-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 8px;
+  }
+  .macro-name { font-weight: 700; font-size: 1.05em; }
+  .macro-percentage {
+    background: var(--secondary);
+    padding: 3px 10px; border-radius: 20px;
+    font-size: 0.82em; font-weight: 700; color: var(--text-primary);
+  }
+  .macro-values {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    font-size: 0.92em;
+  }
+  .macro-values label { color: var(--text-secondary); margin-right: 4px; }
+  .macro-values strong { color: var(--text-primary); }
+  .macro-desc {
+    font-size: 0.82em; color: var(--text-secondary);
+    margin-top: 8px; line-height: 1.45;
+  }
+
+  /* Recommendations */
+  .reco-list { display: grid; gap: 10px; }
+  .reco-item {
+    background: var(--primary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex; gap: 12px; align-items: flex-start;
+  }
+  .reco-item .ico {
+    flex-shrink: 0;
+    width: 36px; height: 36px; border-radius: 10px;
+    display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--accent), var(--accent-light));
+    color: #FFFFFF;
+    font-size: 1.1em;
+  }
+  .reco-item.success .ico { background: linear-gradient(135deg, var(--success), #A0D4E8); color: #2D5F47; }
+  .reco-item.warn .ico { background: linear-gradient(135deg, var(--warning), var(--accent-light)); color: #7A4A1F; }
+  .reco-item.danger .ico { background: linear-gradient(135deg, var(--danger), var(--accent)); color: #FFFFFF; }
+  .reco-item .body strong { display: block; margin-bottom: 3px; }
+  .reco-item .body { font-size: 0.93em; color: var(--text-secondary); }
+  .reco-item .body strong { color: var(--text-primary); }
+
+  /* Download */
+  .download-row { display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 10px; margin-top: 16px; }
+  @media (max-width: 640px) { .download-row { grid-template-columns: 1fr; } }
+  .btn-download {
+    padding: 14px;
+    background: linear-gradient(135deg, var(--info), var(--accent-light));
+    color: #FFFFFF;
+    border: none; border-radius: 10px;
+    cursor: pointer; font-weight: 700; font-size: 0.98em;
+    transition: var(--transition);
+    box-shadow: 0 4px 12px rgba(200, 182, 226, 0.45);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  }
+  .btn-download:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(200, 182, 226, 0.55); }
+  .btn-download-weekly {
+    background: linear-gradient(135deg, #E91E63, var(--accent));
+    box-shadow: 0 4px 14px rgba(233, 30, 99, 0.40);
+  }
+  .btn-download-weekly:hover { box-shadow: 0 8px 24px rgba(233, 30, 99, 0.50); }
+
+  /* Disclaimer */
+  .disclaimer {
+    margin-top: 28px;
+    padding: 16px 20px;
+    background: rgba(255, 216, 168, 0.35);
+    border: 1px solid rgba(255, 216, 168, 0.6);
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-size: 0.88em;
+    line-height: 1.6;
+  }
+  .disclaimer strong { color: #C97D2E; }
+
+  /* Animations */
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes fadeInUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeInDown { from { opacity: 0; transform: translateY(-15px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: var(--primary-dark); }
+  ::-webkit-scrollbar-thumb { background: var(--secondary); border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="badge">🌸</div>
+      <span style="font-size:1.1em;">Twink Fit</span>
+    </div>
+    <h1>Calculadora de Macros & Calorías</h1>
+    <p>Planes nutricionales personalizados con fórmulas científicas (Mifflin-St Jeor)</p>
+  </header>
+
+  <!-- MAIN GRID -->
+  <div class="grid">
+
+    <!-- CARD 1: INPUTS -->
+    <div class="card">
+      <h2>Tu Información</h2>
+
+      <!-- Género -->
+      <div class="form-section">
+        <h3>Género</h3>
+        <div class="gender-row">
+          <button class="gender-btn active" id="btnMale" onclick="setGender('male')">♂ Hombre</button>
+          <button class="gender-btn" id="btnFemale" onclick="setGender('female')">♀ Mujer</button>
+        </div>
+      </div>
+
+      <!-- Medidas -->
+      <div class="form-section">
+        <h3>Medidas Corporales</h3>
+        <div class="input-row">
+          <div class="field">
+            <label>Edad (años)</label>
+            <input id="age" type="number" min="13" max="120" placeholder="25" value="25">
+          </div>
+          <div class="field">
+            <label>Altura (cm)</label>
+            <input id="height" type="number" min="100" max="250" placeholder="175" value="175">
+          </div>
+          <div class="field">
+            <label>Peso (kg)</label>
+            <input id="weight" type="number" min="30" max="300" step="0.1" placeholder="75" value="75">
+          </div>
+        </div>
+        <div class="input-row" style="margin-top:10px;">
+          <div class="field" style="grid-column: 1 / -1;">
+            <label>Cintura (cm) — opcional, mejora la precisión</label>
+            <input id="waist" type="number" min="40" max="200" step="0.5" placeholder="Ej: 82 (mide en el ombligo)">
+          </div>
+        </div>
+      </div>
+
+      <!-- Grasa Corporal -->
+      <div class="form-section">
+        <h3>% Grasa Corporal</h3>
+        <div class="slider-wrap">
+          <div class="slider-top">
+            <span style="color: var(--text-secondary);">Desliza para ajustar</span>
+            <span class="slider-value" id="bodyFatValue">20%</span>
+          </div>
+          <input type="range" id="bodyFat" min="3" max="50" value="20" step="0.5">
+        </div>
+
+        <!-- Cámara / Subir foto -->
+        <div class="camera-section">
+          <div class="camera-buttons">
+            <button type="button" class="btn-secondary" onclick="startCamera()">📷 Abrir Cámara</button>
+            <button type="button" class="btn-secondary" onclick="document.getElementById('photoUpload').click()">📁 Subir Foto</button>
+            <button type="button" class="btn-secondary" onclick="captureImage()" id="btnCapture" style="display:none;">📸 Capturar</button>
+            <button type="button" class="btn-secondary" onclick="stopCamera()" id="btnStop" style="display:none;">✖ Cerrar</button>
+          </div>
+          <input type="file" id="photoUpload" accept="image/*" style="display:none;" onchange="handlePhotoUpload(event)">
+          <video id="video" autoplay playsinline muted></video>
+          <canvas id="canvas"></canvas>
+          <img id="capturedImage" alt="Foto capturada">
+
+          <!-- Panel de análisis estimado -->
+          <div id="bodyFatEstimate" class="estimate-panel" style="display:none;">
+            <div class="estimate-header">
+              <span class="estimate-icon">🤖</span>
+              <strong>Estimación con IA (MoveNet + RFM)</strong>
+            </div>
+            <div class="estimate-body">
+              <div class="estimate-range">
+                <span class="estimate-label">Rango sugerido:</span>
+                <span class="estimate-value" id="estimateValue">--</span>
+              </div>
+              <div class="estimate-note" id="estimateNote">--</div>
+              <button type="button" class="btn-mini" onclick="applyEstimate()">✓ Usar esta estimación</button>
+            </div>
+          </div>
+
+          <div style="font-size:0.82em;color:var(--text-secondary);font-style:italic;">
+            🤖 Usa detección de pose (MoveNet Thunder) + fórmulas RFM/Deurenberg. <strong>Error típico ±3-5%</strong> vs DEXA. Para mejor resultado: foto frontal, ropa ajustada, brazos separados, torso visible.
+          </div>
+        </div>
+      </div>
+
+      <!-- Actividad Física -->
+      <div class="form-section">
+        <h3>Nivel de Actividad Física</h3>
+        <select id="activityLevel">
+          <option value="1.2">Sedentario (poco o nada de ejercicio)</option>
+          <option value="1.375">Leve (1-3 días/semana)</option>
+          <option value="1.55" selected>Moderado (3-5 días/semana)</option>
+          <option value="1.725">Activo (6-7 días/semana)</option>
+          <option value="1.9">Muy Activo (entrenamiento 2x/día)</option>
+        </select>
+      </div>
+
+      <!-- Ritmo de cambio semanal -->
+      <div class="form-section">
+        <h3>Ritmo de cambio por semana</h3>
+        <div class="slider-wrap">
+          <div class="slider-top">
+            <span style="color: var(--text-secondary);" id="paceLabel">Ajuste por semana</span>
+            <span class="slider-value" id="paceValue">0.5 kg</span>
+          </div>
+          <input type="range" id="weeklyPace" min="0.25" max="2" value="0.5" step="0.25">
+          <div style="font-size:0.8em;color:var(--text-secondary);margin-top:4px;line-height:1.4;" id="paceHint">
+            Aplica al ritmo de ganancia (volumen) y pérdida (definición). 0.5 kg/sem es el ritmo recomendado.
+          </div>
+        </div>
+      </div>
+
+      <div class="alert" id="alertBox"></div>
+
+      <button class="btn-primary" onclick="calcularMacros()">⚡ Calcular Mis Macros</button>
+      <button class="btn-ghost" onclick="resetData()">🗑 Limpiar Datos Guardados</button>
+    </div>
+
+    <!-- CARD 2: GRÁFICO COMPOSICIÓN -->
+    <div class="card chart-card">
+      <h2>Composición Corporal</h2>
+      <div class="chart-wrap">
+        <canvas id="bodyCompositionChart"></canvas>
+        <div class="chart-empty" id="bodyChartEmpty">
+          <div class="icon">📊</div>
+          <div>Calcula tus macros para ver tu composición corporal</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RESULTADOS -->
+  <div id="resultsContainer" class="hidden">
+
+    <!-- MÉTRICAS -->
+    <div class="result-card">
+      <h3>📊 Métricas Principales</h3>
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-label">IMC</div>
+          <div class="stat-value" id="imc">--</div>
+          <div class="stat-sub" id="imcCategory">--</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Masa Muscular</div>
+          <div class="stat-value" id="muscleMass">--</div>
+          <div class="stat-sub">kilogramos</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Grasa Corporal</div>
+          <div class="stat-value" id="fatMass">--</div>
+          <div class="stat-sub" id="fatCategory">kilogramos</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">BMR</div>
+          <div class="stat-value" id="bmr">--</div>
+          <div class="stat-sub">kcal/día (reposo)</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">TDEE</div>
+          <div class="stat-value" id="tdee">--</div>
+          <div class="stat-sub">kcal/día (mantenimiento)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PLANES NUTRICIONALES -->
+    <div class="result-card">
+      <h3>🍽 Planes Nutricionales</h3>
+
+      <div class="macros-tabs">
+        <button class="tab-button active" onclick="switchTab('volumen')">📈 Volumen (Ganancia)</button>
+        <button class="tab-button" onclick="switchTab('definicion')">📉 Definición (Pérdida)</button>
+      </div>
+
+      <!-- VOLUMEN -->
+      <div id="volumen" class="tab-content active">
+        <div class="tdee-section">
+          <h4>Calorías Diarias Objetivo</h4>
+          <div class="tdee-value" id="tdeeBulk">--</div>
+          <div class="unit" id="tdeeBulkUnit">kcal/día</div>
+        </div>
+
+        <div class="macro-item protein">
+          <div class="macro-header">
+            <div class="macro-name">🥩 Proteína</div>
+            <div class="macro-percentage" id="proteinPercentBulk">--%</div>
+          </div>
+          <div class="macro-values">
+            <div><label>Gramos:</label> <strong id="proteinGramsBulk">--</strong></div>
+            <div><label>Kcal:</label> <strong id="proteinCalsBulk">--</strong></div>
+          </div>
+          <div class="macro-desc">Esencial para construcción y recuperación muscular. Fuentes: pollo, pavo, huevos, pescado, lácteos, legumbres.</div>
+        </div>
+
+        <div class="macro-item carbs">
+          <div class="macro-header">
+            <div class="macro-name">🍚 Carbohidratos</div>
+            <div class="macro-percentage" id="carbsPercentBulk">--%</div>
+          </div>
+          <div class="macro-values">
+            <div><label>Gramos:</label> <strong id="carbsGramsBulk">--</strong></div>
+            <div><label>Kcal:</label> <strong id="carbsCalsBulk">--</strong></div>
+          </div>
+          <div class="macro-desc">Fuente principal de energía para entrenamientos intensos. Prioriza: arroz, avena, papa, batata, frutas.</div>
+        </div>
+
+        <div class="macro-item fats">
+          <div class="macro-header">
+            <div class="macro-name">🥑 Grasas</div>
+            <div class="macro-percentage" id="fatsPercentBulk">--%</div>
+          </div>
+          <div class="macro-values">
+            <div><label>Gramos:</label> <strong id="fatsGramsBulk">--</strong></div>
+            <div><label>Kcal:</label> <strong id="fatsCalsBulk">--</strong></div>
+          </div>
+          <div class="macro-desc">Cruciales para hormonas y absorción de vitaminas. Fuentes: aguacate, frutos secos, aceite de oliva, pescados grasos.</div>
+        </div>
+      </div>
+
+      <!-- DEFINICIÓN -->
+      <div id="definicion" class="tab-content">
+        <div class="tdee-section">
+          <h4>Calorías Diarias Objetivo</h4>
+          <div class="tdee-value" id="tdeeCut">--</div>
+          <div class="unit" id="tdeeCutUnit">kcal/día</div>
+        </div>
+
+        <div class="macro-item protein">
+          <div class="macro-header">
+            <div class="macro-name">🥩 Proteína</div>
+            <div class="macro-percentage" id="proteinPercentCut">--%</div>
+          </div>
+          <div class="macro-values">
+            <div><label>Gramos:</label> <strong id="proteinGramsCut">--</strong></div>
+            <div><label>Kcal:</label> <strong id="proteinCalsCut">--</strong></div>
+          </div>
+          <div class="macro-desc">Alta en proteína para preservar masa muscular durante el déficit. Distribúyela en 4-5 comidas.</div>
+        </div>
+
+        <div class="macro-item carbs">
+          <div class="macro-header">
+            <div class="macro-name">🍚 Carbohidratos</div>
+            <div class="macro-percentage" id="carbsPercentCut">--%</div>
+          </div>
+          <div class="macro-values">
+            <div><label>Gramos:</label> <strong id="carbsGramsCut">--</strong></div>
+            <div><label>Kcal:</label> <strong id="carbsCalsCut">--</strong></div>
+          </div>
+          <div class="macro-desc">Reducidos pero suficientes. Concentra carbohidratos en torno al entrenamiento (pre/post).</div>
+        </div>
+
+        <div class="macro-item fats">
+          <div class="macro-header">
+            <div class="macro-name">🥑 Grasas</div>
+            <div class="macro-percentage" id="fatsPercentCut">--%</div>
+          </div>
+          <div class="macro-values">
+            <div><label>Gramos:</label> <strong id="fatsGramsCut">--</strong></div>
+            <div><label>Kcal:</label> <strong id="fatsCalsCut">--</strong></div>
+          </div>
+          <div class="macro-desc">Mantén un mínimo para preservar producción hormonal saludable durante la pérdida de grasa.</div>
+        </div>
+      </div>
+
+      <div class="download-row">
+        <button class="btn-download" onclick="descargarResultados('txt')">⬇ TXT</button>
+        <button class="btn-download" onclick="descargarResultados('pdf')">⬇ PDF Resumen</button>
+        <button class="btn-download btn-download-weekly" onclick="descargarPlanSemanal()">📅 Plan Semanal PDF</button>
+      </div>
+    </div>
+
+    <!-- GRÁFICO MACROS -->
+    <div class="result-card">
+      <h3>📈 Distribución de Macros</h3>
+      <div class="chart-wrap" style="height: 340px; position: relative;">
+        <canvas id="macrosChart"></canvas>
+      </div>
+    </div>
+
+    <!-- RECOMENDACIONES -->
+    <div class="result-card">
+      <h3>💡 Recomendaciones Personalizadas</h3>
+      <div id="recomendaciones" class="reco-list"></div>
+    </div>
+
+  </div>
+
+  <!-- Disclaimer -->
+  <div class="disclaimer">
+    <strong>⚠ Aviso legal:</strong> Esta herramienta es de carácter <strong>EDUCATIVO</strong> y proporciona estimaciones basadas en fórmulas científicas reconocidas (Mifflin-St Jeor). <strong>No constituye asesoría médica ni nutricional profesional.</strong> Consulta siempre con un nutricionista certificado, médico o entrenador antes de iniciar cualquier plan dietético, especialmente si tienes condiciones de salud preexistentes.
+  </div>
+
+</div>
+
+<script>
+/* =========================================================
+   VARIABLES GLOBALES
+   ========================================================= */
+let selectedGender = 'male';
+let videoStream = null;
+let bodyCompositionChart = null;
+let macrosChart = null;
+let lastResults = null; // para descargas
+
+const STORAGE_KEY = 'twinkfit_data_v1';
+
+/* =========================================================
+   INICIALIZACIÓN
+   ========================================================= */
+document.addEventListener('DOMContentLoaded', () => {
+  // Slider live update - grasa corporal
+  const slider = document.getElementById('bodyFat');
+  const sliderValue = document.getElementById('bodyFatValue');
+  slider.addEventListener('input', () => {
+    sliderValue.textContent = parseFloat(slider.value).toFixed(1).replace('.0','') + '%';
+    persistData();
+  });
+
+  // Slider live update - ritmo semanal
+  const paceSlider = document.getElementById('weeklyPace');
+  const paceValue = document.getElementById('paceValue');
+  const paceHint = document.getElementById('paceHint');
+  paceSlider.addEventListener('input', () => {
+    const pace = parseFloat(paceSlider.value);
+    paceValue.textContent = pace + ' kg';
+    paceHint.textContent = getPaceHint(pace);
+    persistData();
+  });
+
+  // Persistencia en cualquier cambio de input
+  ['age','height','weight','waist','activityLevel'].forEach(id => {
+    document.getElementById(id).addEventListener('input', persistData);
+  });
+
+  loadData();
+});
+
+function getPaceHint(pace) {
+  const dailyKcal = Math.round((pace * 7700) / 7);
+  if (pace <= 0.25) return `Muy lento (~${dailyKcal} kcal/día). Ideal para recomposición o etapas finales.`;
+  if (pace <= 0.5)  return `Ritmo recomendado (~${dailyKcal} kcal/día). Sostenible y preserva masa muscular.`;
+  if (pace <= 1)    return `Ritmo moderado-rápido (~${dailyKcal} kcal/día). Requiere disciplina y buena calidad alimentaria.`;
+  if (pace <= 1.5)  return `⚠ Ritmo agresivo (~${dailyKcal} kcal/día). Mayor riesgo de pérdida muscular en definición.`;
+  return `⚠ Ritmo muy agresivo (~${dailyKcal} kcal/día). Solo recomendable a corto plazo y supervisión profesional.`;
+}
+
+/* =========================================================
+   PERSISTENCIA (localStorage)
+   ========================================================= */
+function persistData() {
+  try {
+    const data = {
+      gender: selectedGender,
+      age: document.getElementById('age').value,
+      height: document.getElementById('height').value,
+      weight: document.getElementById('weight').value,
+      waist: document.getElementById('waist').value,
+      bodyFat: document.getElementById('bodyFat').value,
+      activityLevel: document.getElementById('activityLevel').value,
+      weeklyPace: document.getElementById('weeklyPace').value
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (e) { /* localStorage podría estar deshabilitado */ }
+}
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (data.gender) setGender(data.gender);
+    if (data.age) document.getElementById('age').value = data.age;
+    if (data.height) document.getElementById('height').value = data.height;
+    if (data.weight) document.getElementById('weight').value = data.weight;
+    if (data.waist) document.getElementById('waist').value = data.waist;
+    if (data.bodyFat) {
+      document.getElementById('bodyFat').value = data.bodyFat;
+      document.getElementById('bodyFatValue').textContent =
+        parseFloat(data.bodyFat).toFixed(1).replace('.0','') + '%';
+    }
+    if (data.activityLevel) document.getElementById('activityLevel').value = data.activityLevel;
+    if (data.weeklyPace) {
+      document.getElementById('weeklyPace').value = data.weeklyPace;
+      const pace = parseFloat(data.weeklyPace);
+      document.getElementById('paceValue').textContent = pace + ' kg';
+      document.getElementById('paceHint').textContent = getPaceHint(pace);
+    }
+  } catch (e) { /* ignore */ }
+}
+
+function resetData() {
+  if (!confirm('¿Borrar todos los datos guardados y reiniciar la calculadora?')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  document.getElementById('age').value = 25;
+  document.getElementById('height').value = 175;
+  document.getElementById('weight').value = 75;
+  document.getElementById('waist').value = '';
+  document.getElementById('bodyFat').value = 20;
+  document.getElementById('bodyFatValue').textContent = '20%';
+  document.getElementById('activityLevel').value = '1.55';
+  document.getElementById('weeklyPace').value = 0.5;
+  document.getElementById('paceValue').textContent = '0.5 kg';
+  document.getElementById('paceHint').textContent = getPaceHint(0.5);
+  setGender('male');
+  document.getElementById('resultsContainer').classList.add('hidden');
+  stopCamera();
+  showAlert('Datos limpiados ✓', 'success');
+}
+
+/* =========================================================
+   UI HELPERS
+   ========================================================= */
+function setGender(gender) {
+  selectedGender = gender;
+  document.getElementById('btnMale').classList.toggle('active', gender === 'male');
+  document.getElementById('btnFemale').classList.toggle('active', gender === 'female');
+  persistData();
+}
+
+function showAlert(msg, type = 'warn') {
+  const box = document.getElementById('alertBox');
+  box.textContent = msg;
+  box.className = 'alert show' + (type === 'error' ? ' error' : '');
+  setTimeout(() => box.classList.remove('show'), 5000);
+}
+
+function hideAlert() {
+  document.getElementById('alertBox').classList.remove('show');
+}
+
+/* =========================================================
+   CÁMARA WEB
+   ========================================================= */
+async function startCamera() {
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showAlert('Tu navegador no soporta acceso a cámara. Ajusta el % manualmente.', 'error');
+      return;
+    }
+    videoStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+      audio: false
+    });
+    const video = document.getElementById('video');
+    video.srcObject = videoStream;
+    video.style.display = 'block';
+    document.getElementById('capturedImage').style.display = 'none';
+    document.getElementById('btnCapture').style.display = 'inline-block';
+    document.getElementById('btnStop').style.display = 'inline-block';
+  } catch (err) {
+    showAlert('No se pudo acceder a la cámara: ' + err.message, 'error');
+  }
+}
+
+function captureImage() {
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  const img = document.getElementById('capturedImage');
+
+  canvas.width = video.videoWidth || 640;
+  canvas.height = video.videoHeight || 480;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  img.src = canvas.toDataURL('image/png');
+  img.style.display = 'block';
+  video.style.display = 'none';
+
+  stopCameraStream();
+  document.getElementById('btnCapture').style.display = 'none';
+  document.getElementById('btnStop').style.display = 'none';
+
+  // Analizar imagen para estimar % grasa
+  analyzeBodyFatFromImage();
+}
+
+function handlePhotoUpload(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    showAlert('El archivo seleccionado no es una imagen válida.', 'error');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = document.getElementById('capturedImage');
+    img.onload = () => {
+      // Dibujar imagen en canvas para analizar
+      const canvas = document.getElementById('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      analyzeBodyFatFromImage();
+    };
+    img.src = e.target.result;
+    img.style.display = 'block';
+    document.getElementById('video').style.display = 'none';
+    stopCameraStream();
+    document.getElementById('btnCapture').style.display = 'none';
+    document.getElementById('btnStop').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+  // permitir re-subir el mismo archivo después
+  event.target.value = '';
+}
+
+/* =========================================================
+   ANÁLISIS DE % GRASA — MoveNet + Fórmulas Validadas
+   ---------------------------------------------------------
+   Combina:
+   1. Detección de pose (MoveNet Thunder) para medir
+      proporciones reales: hombro/cadera, torso, cintura visual.
+   2. Fórmula Deurenberg (BMI + edad + género) como base.
+   3. Fórmula RFM (Woolcott et al. 2018) si hay cintura:
+      Hombres: 64 − (20 × altura/cintura)
+      Mujeres: 76 − (20 × altura/cintura)
+   4. Corrección por proporciones de pose (ratio cadera/hombro
+      y "cintura visual" del torso central).
+
+   IMPORTANTE: incluso con todo esto, la estimación tiene
+   ±3-5% de error vs DEXA. La precisión clínica real solo
+   se obtiene con escaneo corporal.
+   ========================================================= */
+let lastEstimate = null;
+let poseDetector = null;
+let poseDetectorLoading = false;
+
+async function ensurePoseDetector(statusEl) {
+  if (poseDetector) return poseDetector;
+  if (poseDetectorLoading) {
+    // Esperar a que termine la carga en curso
+    while (poseDetectorLoading) await new Promise(r => setTimeout(r, 100));
+    return poseDetector;
+  }
+  poseDetectorLoading = true;
+  try {
+    if (statusEl) statusEl.textContent = 'Cargando modelo de IA (puede tardar ~10s la 1ra vez)...';
+    await loadTensorFlow();
+    if (statusEl) statusEl.textContent = 'Inicializando detector...';
+    // Inicializar backend WebGL
+    if (window.tf && window.tf.ready) await window.tf.ready();
+    if (window.tf && window.tf.setBackend) {
+      try { await window.tf.setBackend('webgl'); } catch(e) {}
+    }
+    const model = window.poseDetection.SupportedModels.MoveNet;
+    poseDetector = await window.poseDetection.createDetector(model, {
+      modelType: window.poseDetection.movenet.modelType.SINGLEPOSE_THUNDER
+    });
+    return poseDetector;
+  } finally {
+    poseDetectorLoading = false;
+  }
+}
+
+async function analyzeBodyFatFromImage() {
+  const panel = document.getElementById('bodyFatEstimate');
+  const valueEl = document.getElementById('estimateValue');
+  const noteEl = document.getElementById('estimateNote');
+  panel.style.display = 'block';
+  valueEl.textContent = '...';
+  noteEl.textContent = 'Analizando con IA...';
+
+  const canvas = document.getElementById('canvas');
+  const img = document.getElementById('capturedImage');
+  if (!img.src) { noteEl.textContent = 'No hay imagen para analizar.'; return; }
+
+  // Asegurar que la imagen esté pintada en el canvas
+  if (!canvas.width || !canvas.height) {
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    canvas.getContext('2d').drawImage(img, 0, 0);
+  }
+
+  // Datos del usuario
+  const age = parseInt(document.getElementById('age').value) || 25;
+  const weight = parseFloat(document.getElementById('weight').value) || 70;
+  const heightCm = parseFloat(document.getElementById('height').value) || 170;
+  const waistInput = parseFloat(document.getElementById('waist').value);
+  const gender = selectedGender;
+  const bmi = weight / Math.pow(heightCm / 100, 2);
+  const sex = gender === 'male' ? 1 : 0;
+
+  // === 1. BASE: Deurenberg ===
+  let deurenberg = (1.20 * bmi) + (0.23 * age) - (10.8 * sex) - 5.4;
+  deurenberg = clamp(deurenberg, 5, 50);
+
+  // === 2. RFM si tenemos cintura medida (la más confiable) ===
+  let rfm = null;
+  if (waistInput && waistInput > 40 && waistInput < 200) {
+    rfm = gender === 'male'
+      ? 64 - (20 * heightCm / waistInput)
+      : 76 - (20 * heightCm / waistInput);
+    rfm = clamp(rfm, 4, 55);
+  }
+
+  // === 3. POSE: intentar análisis con MoveNet ===
+  let poseSignal = null; // ajuste en puntos % (positivo = +grasa, negativo = -grasa)
+  let poseDetail = '';
+  let poseUsed = false;
+
+  try {
+    const detector = await ensurePoseDetector(noteEl);
+    const poses = await detector.estimatePoses(canvas, { maxPoses: 1 });
+    if (poses && poses.length > 0 && poses[0].keypoints) {
+      const kp = {};
+      poses[0].keypoints.forEach(k => { kp[k.name] = k; });
+
+      // Verificar que los keypoints críticos tengan buena confianza
+      const required = ['left_shoulder','right_shoulder','left_hip','right_hip'];
+      const conf = required.map(n => kp[n] ? kp[n].score : 0);
+      const minConf = Math.min(...conf);
+
+      if (minConf > 0.3) {
+        // Calcular medidas en píxeles
+        const shoulderW = Math.abs(kp.right_shoulder.x - kp.left_shoulder.x);
+        const hipW = Math.abs(kp.right_hip.x - kp.left_hip.x);
+        const shoulderY = (kp.left_shoulder.y + kp.right_shoulder.y) / 2;
+        const hipY = (kp.left_hip.y + kp.right_hip.y) / 2;
+        const torsoH = Math.abs(hipY - shoulderY);
+
+        // Estimar "cintura visual" — analizar el ancho del cuerpo en el punto
+        // medio del torso (zona abdominal). Usamos detección de bordes simples.
+        const waistY = shoulderY + (torsoH * 0.65); // ~65% del torso, zona abdominal
+        const torsoCenterX = (kp.left_shoulder.x + kp.right_shoulder.x + kp.left_hip.x + kp.right_hip.x) / 4;
+        const visualWaistPx = estimateWaistWidthAtY(canvas, waistY, torsoCenterX, hipW * 2.5);
+
+        // Ratios
+        const hipToShoulder = hipW / shoulderW;        // >1 = caderas más anchas (pera)
+        const waistToShoulder = visualWaistPx / shoulderW; // >1 = barriga prominente
+        const waistToHip = visualWaistPx / hipW;       // WHR clásico
+
+        // Señales:
+        // - Si la cintura visual es mayor que los hombros → más grasa abdominal
+        // - Si la cintura visual ≈ caderas o mayor → más grasa
+        // - Ratio hip/shoulder típico hombre delgado: 0.9-1.0 / gordo: 0.85 (panza domina)
+        let adjust = 0;
+
+        if (waistToShoulder > 1.05)      adjust += 4;
+        else if (waistToShoulder > 0.95) adjust += 2;
+        else if (waistToShoulder > 0.85) adjust += 0;
+        else if (waistToShoulder > 0.75) adjust -= 2;
+        else                              adjust -= 4;
+
+        if (waistToHip > 1.0)       adjust += 2;
+        else if (waistToHip > 0.9)  adjust += 0;
+        else                         adjust -= 1;
+
+        // Para mujeres, caderas naturalmente más anchas — ajustar
+        if (gender === 'female') adjust -= 1;
+
+        poseSignal = clamp(adjust, -6, 6);
+        poseUsed = true;
+        poseDetail = `Pose detectada (confianza ${(minConf*100).toFixed(0)}%). Ratios: hombros/cintura ${(1/waistToShoulder).toFixed(2)}, cintura/cadera ${waistToHip.toFixed(2)}.`;
+      } else {
+        poseDetail = `Pose detectada con baja confianza (${(minConf*100).toFixed(0)}%). Para mejor resultado: foto frontal, torso visible, brazos separados del cuerpo.`;
+      }
+    } else {
+      poseDetail = 'No se detectó una persona en la imagen. Asegurate de aparecer de cuerpo entero o medio cuerpo.';
+    }
+  } catch (e) {
+    poseDetail = 'No se pudo cargar el modelo de IA (sin conexión o navegador no compatible). Usando estimación por BMI.';
+  }
+
+  // === 4. COMBINAR ===
+  let finalEstimate;
+  let methodsUsed = [];
+  if (rfm !== null && poseSignal !== null) {
+    // Promedio ponderado: RFM 50%, Deurenberg 25%, Deurenberg+pose 25%
+    finalEstimate = (rfm * 0.5) + (deurenberg * 0.25) + ((deurenberg + poseSignal) * 0.25);
+    methodsUsed = ['RFM (cintura)', 'BMI/edad', 'Pose IA'];
+  } else if (rfm !== null) {
+    finalEstimate = (rfm * 0.65) + (deurenberg * 0.35);
+    methodsUsed = ['RFM (cintura)', 'BMI/edad'];
+  } else if (poseSignal !== null) {
+    finalEstimate = deurenberg + poseSignal;
+    methodsUsed = ['BMI/edad', 'Pose IA'];
+  } else {
+    finalEstimate = deurenberg;
+    methodsUsed = ['BMI/edad'];
+  }
+  finalEstimate = clamp(finalEstimate, 4, 50);
+
+  // Rango de incertidumbre
+  // Si tenemos RFM + pose: ±2.5 (más confiable)
+  // Si tenemos RFM o pose: ±3
+  // Solo BMI: ±4
+  let uncertainty = 4;
+  if (rfm !== null && poseSignal !== null) uncertainty = 2.5;
+  else if (rfm !== null || poseSignal !== null) uncertainty = 3;
+
+  const low = Math.max(3, finalEstimate - uncertainty);
+  const high = Math.min(55, finalEstimate + uncertainty);
+  const center = Math.round(finalEstimate * 2) / 2;
+  lastEstimate = center;
+
+  valueEl.textContent = `${low.toFixed(0)}% – ${high.toFixed(0)}%`;
+  noteEl.innerHTML = `
+    <strong>Estimación central: ${center}%</strong> (±${uncertainty}%)<br>
+    <span style="font-size:0.9em;">Métodos: ${methodsUsed.join(' + ')}.</span>
+    ${poseDetail ? `<br><span style="font-size:0.85em;color:var(--text-secondary);">${poseDetail}</span>` : ''}
+    ${!waistInput ? `<br><span style="font-size:0.85em;color:#C97D2E;">💡 Si medís tu cintura con cinta y la cargás arriba, la estimación se vuelve más precisa.</span>` : ''}
+  `;
+}
+
+/* Estima el ancho del cuerpo en una línea horizontal dada,
+   buscando bordes con cambios de luminancia desde el centro hacia afuera */
+function estimateWaistWidthAtY(canvas, y, centerX, maxSearch) {
+  try {
+    const ctx = canvas.getContext('2d');
+    const yi = Math.round(clamp(y, 1, canvas.height - 2));
+    const xi = Math.round(centerX);
+    const search = Math.round(clamp(maxSearch, 50, canvas.width / 2));
+
+    // Tomar línea horizontal centrada
+    const startX = Math.max(0, xi - search);
+    const endX = Math.min(canvas.width - 1, xi + search);
+    const lineW = endX - startX;
+    const lineData = ctx.getImageData(startX, yi, lineW, 1).data;
+
+    // Luminancia perceptual
+    const lums = [];
+    for (let i = 0; i < lineData.length; i += 4) {
+      lums.push(0.299*lineData[i] + 0.587*lineData[i+1] + 0.114*lineData[i+2]);
+    }
+    // Luminancia del centro (asumimos que es el sujeto)
+    const centerLum = lums[Math.floor(lums.length / 2)];
+
+    // Buscar bordes: punto donde la luminancia cambia drásticamente del centro
+    const threshold = 35; // diferencia perceptual
+    const centerIdx = Math.floor(lums.length / 2);
+
+    // Lado izquierdo
+    let leftEdge = 0;
+    for (let i = centerIdx; i >= 0; i--) {
+      if (Math.abs(lums[i] - centerLum) > threshold) { leftEdge = i; break; }
+    }
+    // Lado derecho
+    let rightEdge = lums.length - 1;
+    for (let i = centerIdx; i < lums.length; i++) {
+      if (Math.abs(lums[i] - centerLum) > threshold) { rightEdge = i; break; }
+    }
+    return rightEdge - leftEdge;
+  } catch (e) {
+    return 0;
+  }
+}
+
+function applyEstimate() {
+  if (lastEstimate == null) return;
+  const slider = document.getElementById('bodyFat');
+  slider.value = lastEstimate;
+  document.getElementById('bodyFatValue').textContent =
+    parseFloat(lastEstimate).toFixed(1).replace('.0','') + '%';
+  persistData();
+  showAlert(`✓ Aplicado ${lastEstimate}% al slider. Podés ajustarlo manualmente si querés.`, 'success');
+}
+
+function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+function stopCameraStream() {
+  if (videoStream) {
+    videoStream.getTracks().forEach(t => t.stop());
+    videoStream = null;
+  }
+}
+
+function stopCamera() {
+  stopCameraStream();
+  document.getElementById('video').style.display = 'none';
+  document.getElementById('btnCapture').style.display = 'none';
+  document.getElementById('btnStop').style.display = 'none';
+}
+
+/* =========================================================
+   VALIDACIÓN
+   ========================================================= */
+function validateInputs(age, height, weight, bodyFat) {
+  if (isNaN(age) || age < 13 || age > 120) return 'Edad inválida (13-120).';
+  if (isNaN(height) || height < 100 || height > 250) return 'Altura inválida (100-250 cm).';
+  if (isNaN(weight) || weight < 30 || weight > 300) return 'Peso inválido (30-300 kg).';
+  if (isNaN(bodyFat) || bodyFat < 3 || bodyFat > 50) return '% de grasa inválido (3-50%).';
+  return null;
+}
+
+/* =========================================================
+   CÁLCULO PRINCIPAL
+   ========================================================= */
+function calcularMacros() {
+  hideAlert();
+
+  const age = parseInt(document.getElementById('age').value);
+  const height = parseFloat(document.getElementById('height').value);
+  const weight = parseFloat(document.getElementById('weight').value);
+  const bodyFat = parseFloat(document.getElementById('bodyFat').value);
+  const activityFactor = parseFloat(document.getElementById('activityLevel').value);
+  const weeklyPace = parseFloat(document.getElementById('weeklyPace').value);
+  const gender = selectedGender;
+
+  const error = validateInputs(age, height, weight, bodyFat);
+  if (error) { showAlert(error, 'error'); return; }
+
+  if (age < 18) {
+    showAlert('⚠ Tienes menos de 18 años. Esta herramienta es solo orientativa: consulta con un profesional de salud.', 'warn');
+  }
+
+  // BMR (Mifflin-St Jeor)
+  const bmr = gender === 'male'
+    ? (10 * weight) + (6.25 * height) - (5 * age) + 5
+    : (10 * weight) + (6.25 * height) - (5 * age) - 161;
+
+  // TDEE
+  const tdee = bmr * activityFactor;
+
+  // Composición corporal
+  const fatMass = weight * (bodyFat / 100);
+  const muscleMass = weight - fatMass;
+  const heightM = height / 100;
+  const imc = weight / (heightM * heightM);
+
+  // Ajuste calórico diario según ritmo semanal
+  // 1 kg de grasa ≈ 7700 kcal → ajuste diario = (kg/sem × 7700) / 7
+  const dailyAdjust = (weeklyPace * 7700) / 7;
+
+  // VOLUMEN (superávit)
+  const bulkCals = tdee + dailyAdjust;
+  const bulkProteinG = weight * 2.8;
+  const bulkProteinCal = bulkProteinG * 4;
+  const bulkFatG = weight * 0.9;
+  const bulkFatCal = bulkFatG * 9;
+  const bulkCarbsCal = bulkCals - bulkProteinCal - bulkFatCal;
+  const bulkCarbsG = bulkCarbsCal / 4;
+  const bulkProteinPct = (bulkProteinCal / bulkCals) * 100;
+  const bulkCarbsPct = (bulkCarbsCal / bulkCals) * 100;
+  const bulkFatPct = (bulkFatCal / bulkCals) * 100;
+
+  // DEFINICIÓN (déficit) con piso de seguridad
+  const safetyFloor = gender === 'male' ? 1500 : 1200;
+  const cutCals = Math.max(tdee - dailyAdjust, safetyFloor);
+  const cutFloorHit = (tdee - dailyAdjust) < safetyFloor;
+  const cutProteinG = weight * 2.7;
+  const cutProteinCal = cutProteinG * 4;
+  const cutFatG = weight * 0.8;
+  const cutFatCal = cutFatG * 9;
+  const cutCarbsCal = Math.max(cutCals - cutProteinCal - cutFatCal, 0);
+  const cutCarbsG = cutCarbsCal / 4;
+  const cutProteinPct = (cutProteinCal / cutCals) * 100;
+  const cutCarbsPct = (cutCarbsCal / cutCals) * 100;
+  const cutFatPct = (cutFatCal / cutCals) * 100;
+
+  // Guardar resultados
+  lastResults = {
+    inputs: { gender, age, height, weight, bodyFat, activityFactor, weeklyPace },
+    metrics: { imc, muscleMass, fatMass, bmr, tdee },
+    bulk: {
+      cals: bulkCals,
+      adjust: dailyAdjust,
+      protein: { g: bulkProteinG, cal: bulkProteinCal, pct: bulkProteinPct },
+      carbs:   { g: bulkCarbsG,   cal: bulkCarbsCal,   pct: bulkCarbsPct },
+      fats:    { g: bulkFatG,     cal: bulkFatCal,     pct: bulkFatPct }
+    },
+    cut: {
+      cals: cutCals,
+      adjust: dailyAdjust,
+      floorHit: cutFloorHit,
+      protein: { g: cutProteinG, cal: cutProteinCal, pct: cutProteinPct },
+      carbs:   { g: cutCarbsG,   cal: cutCarbsCal,   pct: cutCarbsPct },
+      fats:    { g: cutFatG,     cal: cutFatCal,     pct: cutFatPct }
+    }
+  };
+
+  // Actualizar etiquetas dinámicas de los tabs
+  document.getElementById('tdeeBulkUnit').textContent =
+    `kcal/día (superávit +${Math.round(dailyAdjust)} para ganar ${weeklyPace} kg/sem)`;
+  document.getElementById('tdeeCutUnit').textContent = cutFloorHit
+    ? `kcal/día (piso de seguridad — ritmo real menor a ${weeklyPace} kg/sem)`
+    : `kcal/día (déficit -${Math.round(dailyAdjust)} para perder ${weeklyPace} kg/sem)`;
+
+  // Actualizar UI
+  updateMetricsUI(imc, muscleMass, fatMass, bmr, tdee, bodyFat, gender);
+  updateBulkUI(lastResults.bulk);
+  updateCutUI(lastResults.cut);
+  updateBodyCompositionChart(muscleMass, fatMass);
+  updateMacrosChart(bulkProteinG, bulkCarbsG, bulkFatG, 'bulk');
+  generateRecommendations({ age, imc, bodyFat, tdee, gender, weeklyPace });
+
+  document.getElementById('resultsContainer').classList.remove('hidden');
+  document.getElementById('bodyChartEmpty').style.display = 'none';
+
+  setTimeout(() => {
+    document.getElementById('resultsContainer').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 120);
+
+  persistData();
+}
+
+/* =========================================================
+   UPDATE UI
+   ========================================================= */
+function updateMetricsUI(imc, muscle, fat, bmr, tdee, bodyFat, gender) {
+  document.getElementById('imc').textContent = imc.toFixed(1);
+
+  let imcCat = '', imcCls = '';
+  if (imc < 18.5)       { imcCat = 'Bajo peso'; imcCls = 'warn'; }
+  else if (imc < 25)    { imcCat = 'Normal';    imcCls = 'normal'; }
+  else if (imc < 30)    { imcCat = 'Sobrepeso'; imcCls = 'warn'; }
+  else                  { imcCat = 'Obesidad';  imcCls = 'danger'; }
+  const imcSub = document.getElementById('imcCategory');
+  imcSub.textContent = imcCat;
+  imcSub.className = 'stat-sub ' + imcCls;
+
+  document.getElementById('muscleMass').textContent = muscle.toFixed(1);
+  document.getElementById('fatMass').textContent = fat.toFixed(1);
+
+  // Categoría de grasa
+  let fatCat = '', fatCls = 'normal';
+  if (gender === 'male') {
+    if (bodyFat < 6)         { fatCat = 'Esencial (riesgo)'; fatCls = 'danger'; }
+    else if (bodyFat < 14)   { fatCat = 'Atlético';          fatCls = 'normal'; }
+    else if (bodyFat < 18)   { fatCat = 'Fitness';           fatCls = 'normal'; }
+    else if (bodyFat < 25)   { fatCat = 'Promedio';          fatCls = 'warn'; }
+    else                     { fatCat = 'Alto';              fatCls = 'danger'; }
+  } else {
+    if (bodyFat < 14)        { fatCat = 'Esencial (riesgo)'; fatCls = 'danger'; }
+    else if (bodyFat < 21)   { fatCat = 'Atlético';          fatCls = 'normal'; }
+    else if (bodyFat < 25)   { fatCat = 'Fitness';           fatCls = 'normal'; }
+    else if (bodyFat < 32)   { fatCat = 'Promedio';          fatCls = 'warn'; }
+    else                     { fatCat = 'Alto';              fatCls = 'danger'; }
+  }
+  const fatSub = document.getElementById('fatCategory');
+  fatSub.textContent = fatCat + ' (' + bodyFat + '%)';
+  fatSub.className = 'stat-sub ' + fatCls;
+
+  document.getElementById('bmr').textContent = Math.round(bmr);
+  document.getElementById('tdee').textContent = Math.round(tdee);
+}
+
+function updateBulkUI(b) {
+  document.getElementById('tdeeBulk').textContent = Math.round(b.cals);
+  document.getElementById('proteinGramsBulk').textContent = Math.round(b.protein.g) + 'g';
+  document.getElementById('proteinCalsBulk').textContent = Math.round(b.protein.cal);
+  document.getElementById('proteinPercentBulk').textContent = b.protein.pct.toFixed(0) + '%';
+  document.getElementById('carbsGramsBulk').textContent = Math.round(b.carbs.g) + 'g';
+  document.getElementById('carbsCalsBulk').textContent = Math.round(b.carbs.cal);
+  document.getElementById('carbsPercentBulk').textContent = b.carbs.pct.toFixed(0) + '%';
+  document.getElementById('fatsGramsBulk').textContent = Math.round(b.fats.g) + 'g';
+  document.getElementById('fatsCalsBulk').textContent = Math.round(b.fats.cal);
+  document.getElementById('fatsPercentBulk').textContent = b.fats.pct.toFixed(0) + '%';
+}
+
+function updateCutUI(c) {
+  document.getElementById('tdeeCut').textContent = Math.round(c.cals);
+  document.getElementById('proteinGramsCut').textContent = Math.round(c.protein.g) + 'g';
+  document.getElementById('proteinCalsCut').textContent = Math.round(c.protein.cal);
+  document.getElementById('proteinPercentCut').textContent = c.protein.pct.toFixed(0) + '%';
+  document.getElementById('carbsGramsCut').textContent = Math.round(c.carbs.g) + 'g';
+  document.getElementById('carbsCalsCut').textContent = Math.round(c.carbs.cal);
+  document.getElementById('carbsPercentCut').textContent = c.carbs.pct.toFixed(0) + '%';
+  document.getElementById('fatsGramsCut').textContent = Math.round(c.fats.g) + 'g';
+  document.getElementById('fatsCalsCut').textContent = Math.round(c.fats.cal);
+  document.getElementById('fatsPercentCut').textContent = c.fats.pct.toFixed(0) + '%';
+}
+
+/* =========================================================
+   GRÁFICOS
+   ========================================================= */
+const chartTextColor = '#4A2C3D';
+const chartBorderColor = '#FFFFFF';
+
+function updateBodyCompositionChart(muscle, fat) {
+  const ctx = document.getElementById('bodyCompositionChart').getContext('2d');
+  if (bodyCompositionChart) bodyCompositionChart.destroy();
+
+  bodyCompositionChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Masa Muscular (kg)', 'Grasa Corporal (kg)'],
+      datasets: [{
+        data: [muscle.toFixed(1), fat.toFixed(1)],
+        backgroundColor: ['#C8B6E2', '#FF8FB1'],
+        borderColor: chartBorderColor,
+        borderWidth: 3,
+        hoverOffset: 12
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '60%',
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { color: chartTextColor, font: { size: 13, weight: '600' }, padding: 14 }
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => ctx.label + ': ' + ctx.parsed + ' kg'
+          }
+        }
+      }
+    }
+  });
+}
+
+function updateMacrosChart(p, c, f, mode = 'bulk') {
+  const ctx = document.getElementById('macrosChart').getContext('2d');
+  if (macrosChart) macrosChart.destroy();
+
+  macrosChart = new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: [
+        'Proteína: ' + Math.round(p) + 'g',
+        'Carbohidratos: ' + Math.round(c) + 'g',
+        'Grasas: ' + Math.round(f) + 'g'
+      ],
+      datasets: [{
+        data: [p * 4, c * 4, f * 9], // kcal
+        backgroundColor: ['#FF8FB1', '#FFD8A8', '#B8E1C9'],
+        borderColor: chartBorderColor,
+        borderWidth: 3,
+        hoverOffset: 12
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { color: chartTextColor, font: { size: 13, weight: '600' }, padding: 14 }
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => ctx.label + ' (' + Math.round(ctx.parsed) + ' kcal)'
+          }
+        }
+      }
+    }
+  });
+}
+
+/* =========================================================
+   TABS
+   ========================================================= */
+function switchTab(tab) {
+  document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+  event.currentTarget.classList.add('active');
+  document.getElementById(tab).classList.add('active');
+
+  // Actualizar gráfico de macros
+  if (lastResults) {
+    if (tab === 'volumen') {
+      updateMacrosChart(lastResults.bulk.protein.g, lastResults.bulk.carbs.g, lastResults.bulk.fats.g, 'bulk');
+    } else {
+      updateMacrosChart(lastResults.cut.protein.g, lastResults.cut.carbs.g, lastResults.cut.fats.g, 'cut');
+    }
+  }
+}
+
+/* =========================================================
+   RECOMENDACIONES
+   ========================================================= */
+function generateRecommendations({ age, imc, bodyFat, tdee, gender, weeklyPace }) {
+  const recs = [];
+
+  // Ritmo elegido (al principio porque es el más relevante para el plan)
+  if (weeklyPace <= 0.25) {
+    recs.push({ type: 'success', icon: '🐢', title: `Ritmo elegido: ${weeklyPace} kg/semana`, body: 'Ritmo muy lento — ideal para recomposición corporal o cuando ya estás cerca de tu objetivo. Cambios sostenibles y mínima pérdida muscular.' });
+  } else if (weeklyPace <= 0.5) {
+    recs.push({ type: 'success', icon: '✓', title: `Ritmo elegido: ${weeklyPace} kg/semana`, body: 'Ritmo recomendado por la mayoría de expertos. Permite preservar masa muscular en definición y minimizar ganancia de grasa en volumen.' });
+  } else if (weeklyPace <= 1) {
+    recs.push({ type: 'warn', icon: '⚡', title: `Ritmo elegido: ${weeklyPace} kg/semana`, body: 'Ritmo moderado-rápido. Funcional pero exige disciplina alimentaria estricta y entrenamiento de fuerza consistente para no perder músculo.' });
+  } else if (weeklyPace <= 1.5) {
+    recs.push({ type: 'danger', icon: '⚠', title: `Ritmo elegido: ${weeklyPace} kg/semana`, body: 'Ritmo agresivo. En definición hay mayor riesgo de perder masa muscular y sentir fatiga. En volumen, gran parte del peso ganado será grasa.' });
+  } else {
+    recs.push({ type: 'danger', icon: '⛔', title: `Ritmo elegido: ${weeklyPace} kg/semana`, body: 'Ritmo muy agresivo. Solo recomendable a corto plazo (≤4 semanas) y con supervisión profesional. Mayor riesgo de efecto rebote.' });
+  }
+
+  // IMC
+  if (imc < 18.5) {
+    recs.push({ type: 'warn', icon: '⚠', title: 'IMC bajo', body: 'Estás por debajo del peso normal. Prioriza un superávit calórico progresivo y entrenamiento de fuerza para ganar masa de forma saludable.' });
+  } else if (imc < 25) {
+    recs.push({ type: 'success', icon: '✓', title: 'IMC saludable', body: 'Tu IMC está dentro del rango normal. Puedes enfocarte en recomposición corporal (ganar músculo y reducir grasa simultáneamente).' });
+  } else if (imc < 30) {
+    recs.push({ type: 'warn', icon: '⚖', title: 'Sobrepeso', body: 'Considera el plan de definición con un déficit calórico moderado. Combina entrenamiento de fuerza con cardio 2-3 veces por semana.' });
+  } else {
+    recs.push({ type: 'danger', icon: '⚠', title: 'Obesidad', body: 'Te recomendamos consultar con un profesional de salud antes de iniciar un plan. Comienza con cambios pequeños y sostenibles en la alimentación y actividad física.' });
+  }
+
+  // Grasa corporal
+  const lowFatLimit = gender === 'male' ? 10 : 16;
+  const highFatLimit = gender === 'male' ? 25 : 32;
+  if (bodyFat < lowFatLimit) {
+    recs.push({ type: 'success', icon: '🔥', title: 'Composición muy magra', body: 'Tienes un nivel muy bajo de grasa. Mantén tus entrenamientos pero asegura ingesta adecuada de grasas saludables para hormonas y rendimiento.' });
+  } else if (bodyFat > highFatLimit) {
+    recs.push({ type: 'warn', icon: '🎯', title: 'Considera un ciclo de definición', body: 'Tu % de grasa está elevado. El plan de definición de esta calculadora puede ayudarte. Apunta a perder 0.5-1 kg por semana de forma sostenible.' });
+  } else {
+    recs.push({ type: 'success', icon: '💪', title: 'Composición equilibrada', body: 'Tu porcentaje de grasa está en un rango saludable. Puedes alternar fases de volumen y definición según tus objetivos.' });
+  }
+
+  // Edad
+  if (age >= 40) {
+    recs.push({ type: 'success', icon: '🧠', title: 'Recomendación por edad', body: 'A partir de los 40 años aumenta la importancia de la proteína (mantenimiento muscular) y del entrenamiento de fuerza 3-4x/semana para prevenir sarcopenia.' });
+  } else if (age < 18) {
+    recs.push({ type: 'warn', icon: '🧒', title: 'Menor de edad', body: 'Tu cuerpo aún está en desarrollo. Estas estimaciones son referenciales: consulta con un pediatra o nutricionista deportivo antes de seguir cualquier plan estricto.' });
+  }
+
+  // Distribución de comidas
+  recs.push({ type: 'success', icon: '🍽', title: 'Distribución de comidas sugerida', body: 'Reparte tus calorías en 4-5 comidas: 25% desayuno · 10% snack · 30% almuerzo · 10% pre-entreno · 25% cena. Incluye proteína en cada una.' });
+
+  // Entrenamiento
+  if (imc >= 25 || bodyFat > highFatLimit) {
+    recs.push({ type: 'success', icon: '🏃', title: 'Plan de entrenamiento', body: 'Combina 3 días de fuerza (full body o torso/pierna) + 2-3 sesiones de cardio (caminata rápida, bici o HIIT corto de 15-20 min).' });
+  } else {
+    recs.push({ type: 'success', icon: '🏋', title: 'Plan de entrenamiento', body: 'Para hipertrofia: 4-5 días de fuerza con rutina dividida (push/pull/legs o torso/pierna). Volumen progresivo y descanso adecuado.' });
+  }
+
+  // Hidratación
+  const water = Math.round((tdee >= 2500 ? 3.5 : 3.0) * 10) / 10;
+  recs.push({ type: 'success', icon: '💧', title: 'Hidratación', body: 'Consume aproximadamente ' + water + ' litros de agua al día. Aumenta si entrenas en climas calurosos o haces sesiones largas.' });
+
+  const container = document.getElementById('recomendaciones');
+  container.innerHTML = recs.map(r => `
+    <div class="reco-item ${r.type}">
+      <div class="ico">${r.icon}</div>
+      <div class="body">
+        <strong>${r.title}</strong>
+        ${r.body}
+      </div>
+    </div>
+  `).join('');
+}
+
+/* =========================================================
+   DESCARGAR RESULTADOS
+   ========================================================= */
+function descargarResultados(format = 'txt') {
+  if (!lastResults) {
+    showAlert('Calcula tus macros primero.', 'error');
+    return;
+  }
+  const r = lastResults;
+  const fecha = new Date().toLocaleDateString('es-ES', { year:'numeric', month:'long', day:'numeric' });
+  const genderTxt = r.inputs.gender === 'male' ? 'Hombre' : 'Mujer';
+  const actLevels = { '1.2':'Sedentario','1.375':'Leve','1.55':'Moderado','1.725':'Activo','1.9':'Muy Activo' };
+  const actTxt = actLevels[r.inputs.activityFactor.toString()] || r.inputs.activityFactor;
+
+  if (format === 'txt') {
+    const content =
+`═══════════════════════════════════════════════════════
+   TWINK FIT - PLAN NUTRICIONAL PERSONALIZADO
+═══════════════════════════════════════════════════════
+Fecha: ${fecha}
+
+─── DATOS PERSONALES ───
+Género:         ${genderTxt}
+Edad:           ${r.inputs.age} años
+Altura:         ${r.inputs.height} cm
+Peso:           ${r.inputs.weight} kg
+% Grasa:        ${r.inputs.bodyFat}%
+Actividad:      ${actTxt} (factor ${r.inputs.activityFactor})
+Ritmo objetivo: ${r.inputs.weeklyPace} kg/semana (±${Math.round(r.bulk.adjust)} kcal/día)
+
+─── MÉTRICAS PRINCIPALES ───
+IMC:                ${r.metrics.imc.toFixed(1)}
+Masa Muscular:      ${r.metrics.muscleMass.toFixed(1)} kg
+Grasa Corporal:     ${r.metrics.fatMass.toFixed(1)} kg
+BMR (reposo):       ${Math.round(r.metrics.bmr)} kcal/día
+TDEE (manten.):     ${Math.round(r.metrics.tdee)} kcal/día
+
+═══════════════════════════════════════════════════════
+   PLAN VOLUMEN (Ganancia +${r.inputs.weeklyPace} kg/sem)
+═══════════════════════════════════════════════════════
+Calorías diarias:   ${Math.round(r.bulk.cals)} kcal  (superávit +${Math.round(r.bulk.adjust)})
+
+Proteína:    ${Math.round(r.bulk.protein.g)}g  (${Math.round(r.bulk.protein.cal)} kcal · ${r.bulk.protein.pct.toFixed(0)}%)
+Carbohidr.:  ${Math.round(r.bulk.carbs.g)}g  (${Math.round(r.bulk.carbs.cal)} kcal · ${r.bulk.carbs.pct.toFixed(0)}%)
+Grasas:      ${Math.round(r.bulk.fats.g)}g  (${Math.round(r.bulk.fats.cal)} kcal · ${r.bulk.fats.pct.toFixed(0)}%)
+
+═══════════════════════════════════════════════════════
+   PLAN DEFINICIÓN (Pérdida -${r.inputs.weeklyPace} kg/sem)
+═══════════════════════════════════════════════════════
+Calorías diarias:   ${Math.round(r.cut.cals)} kcal  ${r.cut.floorHit ? '(piso de seguridad aplicado)' : '(déficit -' + Math.round(r.cut.adjust) + ')'}
+
+Proteína:    ${Math.round(r.cut.protein.g)}g  (${Math.round(r.cut.protein.cal)} kcal · ${r.cut.protein.pct.toFixed(0)}%)
+Carbohidr.:  ${Math.round(r.cut.carbs.g)}g  (${Math.round(r.cut.carbs.cal)} kcal · ${r.cut.carbs.pct.toFixed(0)}%)
+Grasas:      ${Math.round(r.cut.fats.g)}g  (${Math.round(r.cut.fats.cal)} kcal · ${r.cut.fats.pct.toFixed(0)}%)
+
+─── RECOMENDACIONES ───
+${Array.from(document.querySelectorAll('#recomendaciones .reco-item')).map(el => {
+  const t = el.querySelector('strong').textContent;
+  const b = el.querySelector('.body').textContent.replace(t,'').trim();
+  return '• ' + t + ': ' + b;
+}).join('\n\n')}
+
+═══════════════════════════════════════════════════════
+AVISO LEGAL: Esta información es de carácter educativo
+y no sustituye la asesoría de un profesional de salud
+o nutrición. Consulta con un nutricionista certificado.
+═══════════════════════════════════════════════════════
+`;
+    triggerDownload('twinkfit_plan_nutricional.txt', content, 'text/plain');
+  } else if (format === 'pdf') {
+    // "PDF" generado como HTML imprimible (Ctrl+P → Guardar como PDF)
+    const html = buildPrintableHTML(r, fecha, genderTxt, actTxt);
+    const printWin = window.open('', '_blank');
+    if (!printWin) {
+      showAlert('Habilita pop-ups para descargar el PDF.', 'error');
+      return;
+    }
+    printWin.document.write(html);
+    printWin.document.close();
+    printWin.focus();
+    setTimeout(() => printWin.print(), 400);
+  }
+}
+
+function triggerDownload(filename, content, mime) {
+  const blob = new Blob([content], { type: mime + ';charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
+}
+
+/* =========================================================
+   PLAN SEMANAL — 7 días × 5 comidas
+   ========================================================= */
+
+// Base de comidas con macros aproximados por porción base
+// (proteína-g, carbs-g, grasas-g)
+const MEAL_BANK = {
+  desayuno: [
+    { n: 'Avena con leche, banana y miel', base:'1 taza', p: 18, c: 65, f: 8, tip: 'Cocina la avena con leche descremada y agrega banana en rodajas + 1 cdita de miel.' },
+    { n: 'Tostadas integrales con huevo y palta', base:'2 tostadas + 2 huevos', p: 22, c: 35, f: 18, tip: 'Huevos revueltos o pochados, 1/2 palta machacada y pan integral tostado.' },
+    { n: 'Yogur griego con granola y frutos rojos', base:'1 vaso', p: 25, c: 45, f: 10, tip: 'Yogur natural sin azúcar, 40g de granola y un puñado de arándanos/frutillas.' },
+    { n: 'Tortilla de claras con espinaca y queso', base:'4 claras + 1 huevo entero', p: 28, c: 8, f: 12, tip: 'Espinaca salteada + queso magro. Acompañar con pan integral si suma carbos.' },
+    { n: 'Panqueques de avena y plátano', base:'2 panqueques', p: 20, c: 50, f: 6, tip: 'Mezclá 1 banana + 2 huevos + 1/2 taza avena. Cocinar en sartén antiadherente.' },
+    { n: 'Bowl de frutas con cottage', base:'1 bowl', p: 24, c: 40, f: 5, tip: '150g cottage + manzana + frutilla + 1 cda de almendras laminadas.' },
+    { n: 'Smoothie proteico con avena', base:'1 vaso 400ml', p: 30, c: 55, f: 7, tip: 'Leche, 1 medida whey, 1/2 banana, 40g avena, canela. Licuar.' }
+  ],
+  snack_am: [
+    { n: 'Manzana con mantequilla de maní', base:'1 manzana + 1 cda', p: 5, c: 25, f: 8 },
+    { n: 'Puñado de almendras y un yogur', base:'25g + 150g', p: 12, c: 12, f: 14 },
+    { n: 'Tostada de pan integral con queso magro', base:'1 tostada', p: 10, c: 18, f: 4 },
+    { n: 'Barra proteica + fruta', base:'1 barra + pera', p: 18, c: 30, f: 6 },
+    { n: '2 huevos duros + frutos secos', base:'2 + 15g', p: 16, c: 4, f: 14 },
+    { n: 'Batido de proteína con leche', base:'1 medida + 250ml', p: 28, c: 14, f: 4 },
+    { n: 'Galletas de arroz con atún', base:'3 galletas + 1 lata pequeña', p: 22, c: 22, f: 5 }
+  ],
+  almuerzo: [
+    { n: 'Pechuga de pollo a la plancha con arroz y verduras', base:'150g pollo + 1 taza arroz', p: 45, c: 60, f: 8, tip: 'Pollo grillado, arroz integral, brócoli y zanahoria al vapor.' },
+    { n: 'Salmón al horno con quinoa y ensalada', base:'150g salmón + 3/4 taza quinoa', p: 38, c: 50, f: 18, tip: 'Salmón con limón y eneldo, quinoa con espinaca cruda y aceite de oliva.' },
+    { n: 'Carne magra con batata y ensalada mixta', base:'150g + 1 batata mediana', p: 42, c: 45, f: 12, tip: 'Bife magro a la plancha + batata al horno + lechuga, tomate, pepino.' },
+    { n: 'Wok de pollo con vegetales y fideos integrales', base:'150g pollo + 80g fideos secos', p: 40, c: 65, f: 10, tip: 'Pollo en tiras, morrón, zanahoria, brócoli, salsa de soja baja en sodio.' },
+    { n: 'Hamburguesa casera de garbanzos con arroz', base:'2 medianas + 1 taza arroz', p: 28, c: 75, f: 12, tip: 'Garbanzos procesados con avena y especias, arroz integral, ensalada.' },
+    { n: 'Pescado blanco con puré de papa y verduras', base:'180g merluza + 1 taza puré', p: 38, c: 45, f: 10, tip: 'Merluza al horno, puré con leche descremada, espárragos al vapor.' },
+    { n: 'Tacos de pollo con tortillas integrales', base:'3 tacos', p: 40, c: 50, f: 14, tip: 'Pollo desmenuzado, tortillas integrales, tomate, palta, cilantro.' }
+  ],
+  snack_pm: [
+    { n: 'Yogur proteico + granola', base:'1 vaso + 30g', p: 22, c: 30, f: 6 },
+    { n: 'Frutos secos mixtos + pasas', base:'30g', p: 6, c: 18, f: 14 },
+    { n: 'Sándwich pequeño de pavo y queso', base:'1 mini', p: 18, c: 22, f: 7 },
+    { n: 'Smoothie verde con whey', base:'400ml', p: 26, c: 20, f: 3 },
+    { n: 'Hummus con zanahoria y apio', base:'4 cdas + vegetales', p: 8, c: 22, f: 10 },
+    { n: 'Tostadas de pan integral con palta', base:'2 tostadas', p: 8, c: 30, f: 12 },
+    { n: 'Pera con queso cottage', base:'1 + 100g', p: 14, c: 25, f: 2 }
+  ],
+  cena: [
+    { n: 'Pollo al curry con arroz basmati', base:'150g + 3/4 taza arroz', p: 42, c: 55, f: 10, tip: 'Pechuga en cubos con leche de coco light, curry y arroz basmati.' },
+    { n: 'Omelette de claras con vegetales y pan', base:'5 claras + 1 huevo + 1 pan', p: 30, c: 30, f: 8, tip: 'Cebolla, tomate, espinaca. Pan integral pequeño aparte.' },
+    { n: 'Atún con ensalada de garbanzos', base:'1 lata atún + 1 taza garbanzos', p: 38, c: 40, f: 12, tip: 'Atún al natural, garbanzos, tomate cherry, cebolla morada, aceite de oliva.' },
+    { n: 'Pavo con calabaza asada y ensalada', base:'150g pavo + 1 taza calabaza', p: 40, c: 35, f: 8, tip: 'Pavo a la plancha con romero, calabaza al horno con páprika.' },
+    { n: 'Sopa de lentejas con pollo y verduras', base:'1 plato + 100g pollo', p: 35, c: 45, f: 6, tip: 'Lentejas, zanahoria, cebolla, apio, pollo desmenuzado.' },
+    { n: 'Pescado al limón con vegetales asados', base:'180g + 1 taza vegetales', p: 38, c: 25, f: 8, tip: 'Merluza o tilapia + zucchini, berenjena y morrón al horno.' },
+    { n: 'Bowl de quinoa con pollo y palta', base:'3/4 taza quinoa + 120g pollo + 1/2 palta', p: 38, c: 45, f: 16, tip: 'Mezclar todo con limón, cilantro y sal marina.' }
+  ]
+};
+
+const DAY_NAMES = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+
+function pickMeal(category, dayIndex, scale) {
+  const options = MEAL_BANK[category];
+  const meal = options[dayIndex % options.length];
+  // Escalar macros según factor
+  return {
+    name: meal.n,
+    base: meal.base,
+    protein: Math.round(meal.p * scale),
+    carbs: Math.round(meal.c * scale),
+    fats: Math.round(meal.f * scale),
+    kcal: Math.round((meal.p * 4 + meal.c * 4 + meal.f * 9) * scale),
+    tip: meal.tip || ''
+  };
+}
+
+function buildWeeklyPlan(targetCals, targetP, targetC, targetF) {
+  // Distribución típica (porcentajes del total diario)
+  // Desayuno 25% · Snack AM 10% · Almuerzo 30% · Snack PM 10% · Cena 25%
+  const splits = {
+    desayuno:  { cal: 0.25 },
+    snack_am:  { cal: 0.10 },
+    almuerzo:  { cal: 0.30 },
+    snack_pm:  { cal: 0.10 },
+    cena:      { cal: 0.25 }
+  };
+
+  const week = [];
+  for (let d = 0; d < 7; d++) {
+    const day = { name: DAY_NAMES[d], meals: [], totals: { p:0, c:0, f:0, kcal:0 } };
+    let runningCals = 0;
+
+    Object.keys(splits).forEach((cat, idx) => {
+      const target = targetCals * splits[cat].cal;
+      // Calcular escala basada en el target calórico vs el meal "base" promedio
+      const baseSample = MEAL_BANK[cat][d % MEAL_BANK[cat].length];
+      const baseKcal = baseSample.p * 4 + baseSample.c * 4 + baseSample.f * 9;
+      const scale = clamp(target / baseKcal, 0.5, 2.5);
+      const meal = pickMeal(cat, d, scale);
+      meal.category = cat;
+      day.meals.push(meal);
+      day.totals.p += meal.protein;
+      day.totals.c += meal.carbs;
+      day.totals.f += meal.fats;
+      day.totals.kcal += meal.kcal;
+      runningCals += meal.kcal;
+    });
+    week.push(day);
+  }
+  return week;
+}
+
+const CATEGORY_LABELS = {
+  desayuno: '🥣 Desayuno',
+  snack_am: '🥤 Media mañana',
+  almuerzo: '🍱 Almuerzo',
+  snack_pm: '🍎 Merienda',
+  cena: '🍽 Cena'
+};
+
+function descargarPlanSemanal() {
+  if (!lastResults) {
+    showAlert('Calculá tus macros primero.', 'error');
+    return;
+  }
+
+  // Elegir tab activa para saber si plan de volumen o definición
+  const isBulk = document.getElementById('volumen').classList.contains('active');
+  const plan = isBulk ? lastResults.bulk : lastResults.cut;
+  const planName = isBulk ? 'Volumen (Ganancia)' : 'Definición (Pérdida)';
+  const planColor = isBulk ? '#E91E63' : '#FF8FB1';
+
+  const week = buildWeeklyPlan(plan.cals, plan.protein.g, plan.carbs.g, plan.fats.g);
+  const r = lastResults;
+  const fecha = new Date().toLocaleDateString('es-ES', { year:'numeric', month:'long', day:'numeric' });
+
+  const daysHTML = week.map(day => `
+    <div class="day-card">
+      <h3>${day.name}</h3>
+      <table class="meals-table">
+        <thead>
+          <tr><th>Comida</th><th>Plato</th><th>Porción</th><th>P</th><th>C</th><th>G</th><th>Kcal</th></tr>
+        </thead>
+        <tbody>
+          ${day.meals.map(m => `
+            <tr>
+              <td class="cat">${CATEGORY_LABELS[m.category]}</td>
+              <td>
+                <strong>${m.name}</strong>
+                ${m.tip ? `<div class="tip">${m.tip}</div>` : ''}
+              </td>
+              <td class="por">${m.base}</td>
+              <td class="num">${m.protein}g</td>
+              <td class="num">${m.carbs}g</td>
+              <td class="num">${m.fats}g</td>
+              <td class="num kcal">${m.kcal}</td>
+            </tr>
+          `).join('')}
+          <tr class="day-total">
+            <td colspan="3"><strong>Total del día</strong></td>
+            <td class="num"><strong>${day.totals.p}g</strong></td>
+            <td class="num"><strong>${day.totals.c}g</strong></td>
+            <td class="num"><strong>${day.totals.f}g</strong></td>
+            <td class="num kcal"><strong>${day.totals.kcal}</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  `).join('');
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Plan Semanal - Twink Fit</title>
+<style>
+  @page { size: A4; margin: 15mm; }
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; color: #4A2C3D; max-width: 900px; margin: 0 auto; padding: 20px; background: #fff; }
+  h1 { color: ${planColor}; border-bottom: 3px solid ${planColor}; padding-bottom: 8px; margin-bottom: 4px; }
+  .meta { color: #9B7A8A; font-size: 0.9em; margin-bottom: 16px; }
+  .summary { background: #FFF5F8; border-left: 4px solid ${planColor}; padding: 14px 18px; border-radius: 6px; margin-bottom: 24px; }
+  .summary h2 { margin: 0 0 8px 0; color: ${planColor}; font-size: 1.1em; }
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 10px; }
+  .summary-box { background: #fff; padding: 10px; border-radius: 6px; text-align: center; border: 1px solid #F8D7E3; }
+  .summary-box .label { font-size: 0.72em; text-transform: uppercase; color: #9B7A8A; letter-spacing: 0.5px; }
+  .summary-box .val { font-size: 1.3em; font-weight: 800; color: ${planColor}; margin-top: 3px; }
+  .day-card { margin-bottom: 18px; page-break-inside: avoid; }
+  .day-card h3 { background: linear-gradient(135deg, ${planColor}, #FFC1D9); color: #fff; padding: 8px 14px; border-radius: 8px; margin: 0 0 8px 0; font-size: 1.05em; }
+  .meals-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+  .meals-table th { background: #FFF5F8; padding: 7px 8px; text-align: left; border-bottom: 2px solid ${planColor}; color: #4A2C3D; font-size: 0.78em; text-transform: uppercase; letter-spacing: 0.3px; }
+  .meals-table td { padding: 8px; border-bottom: 1px solid #F8D7E3; vertical-align: top; }
+  .meals-table .cat { font-weight: 600; white-space: nowrap; width: 110px; }
+  .meals-table .por { font-size: 0.82em; color: #9B7A8A; width: 90px; }
+  .meals-table .num { text-align: center; width: 45px; color: #6B4A5C; }
+  .meals-table .kcal { color: ${planColor}; font-weight: 700; }
+  .meals-table .tip { font-size: 0.78em; color: #9B7A8A; margin-top: 3px; font-style: italic; }
+  .day-total td { background: #FFF8FB; }
+  .notes { margin-top: 24px; padding: 14px 18px; background: #FFF3E5; border-left: 4px solid #FFD8A8; border-radius: 6px; font-size: 0.85em; line-height: 1.55; }
+  .notes h2 { margin: 0 0 8px 0; color: #C97D2E; font-size: 1em; }
+  .notes ul { margin: 4px 0; padding-left: 20px; }
+  .notes li { margin-bottom: 4px; }
+  .disclaimer { margin-top: 18px; padding: 12px; background: #FFF3E5; border: 1px solid #FFD8A8; border-radius: 6px; font-size: 0.78em; color: #4A2C3D; line-height: 1.5; }
+  @media print { body { padding: 5px; } .day-card { page-break-inside: avoid; } }
+</style></head><body>
+
+<h1>🌸 Twink Fit — Plan Nutricional Semanal</h1>
+<div class="meta">Generado el ${fecha} · Plan: <strong>${planName}</strong> · Ritmo: ${r.inputs.weeklyPace} kg/sem</div>
+
+<div class="summary">
+  <h2>Tus objetivos diarios</h2>
+  <div class="summary-grid">
+    <div class="summary-box"><div class="label">Calorías</div><div class="val">${Math.round(plan.cals)}</div></div>
+    <div class="summary-box"><div class="label">Proteína</div><div class="val">${Math.round(plan.protein.g)}g</div></div>
+    <div class="summary-box"><div class="label">Carbos</div><div class="val">${Math.round(plan.carbs.g)}g</div></div>
+    <div class="summary-box"><div class="label">Grasas</div><div class="val">${Math.round(plan.fats.g)}g</div></div>
+  </div>
+</div>
+
+${daysHTML}
+
+<div class="notes">
+  <h2>📌 Notas importantes</h2>
+  <ul>
+    <li><strong>Hidratación:</strong> Tomá entre 2.5 y 3.5 litros de agua al día.</li>
+    <li><strong>Vegetales libres:</strong> Lechuga, espinaca, rúcula, pepino, apio, brócoli y similares se pueden agregar libremente a almuerzo y cena.</li>
+    <li><strong>Condimentos sin restricción:</strong> Hierbas, especias, limón, vinagre, mostaza, ajo, jengibre.</li>
+    <li><strong>Aceite de oliva:</strong> Cuando aparece, usá extra virgen y mídelo (1 cda = ~14g grasas / 120 kcal).</li>
+    <li><strong>Pre-entreno:</strong> Si entrenás en la tarde, intercambiá el snack PM por el snack AM para más energía cerca del workout.</li>
+    <li><strong>Flexibilidad:</strong> Las porciones son una guía. Ajustá ±10-15% según hambre y rendimiento. Si te sentís fatigado, agregá una porción de carbos al almuerzo o cena.</li>
+    <li><strong>Sustituciones:</strong> Pollo ↔ pavo ↔ pescado blanco; arroz ↔ quinoa ↔ pasta integral; banana ↔ manzana ↔ pera.</li>
+  </ul>
+</div>
+
+<div class="disclaimer">
+  <strong>⚠ Aviso:</strong> Este plan es de carácter <strong>educativo</strong> y se basa en estimaciones calculadas con la fórmula Mifflin-St Jeor. No sustituye la asesoría de un nutricionista certificado. Consultá con un profesional, especialmente si tenés condiciones médicas, alergias, intolerancias o estás embarazada/lactando.
+</div>
+
+</body></html>`;
+
+  const printWin = window.open('', '_blank');
+  if (!printWin) {
+    showAlert('Habilitá pop-ups para descargar el plan semanal.', 'error');
+    return;
+  }
+  printWin.document.write(html);
+  printWin.document.close();
+  printWin.focus();
+  setTimeout(() => printWin.print(), 500);
+}
+
+function buildPrintableHTML(r, fecha, genderTxt, actTxt) {
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Plan Nutricional - Twink Fit</title>
+<style>
+  body { font-family: 'Segoe UI', Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 30px; color: #4A2C3D; }
+  h1 { color: #E91E63; border-bottom: 3px solid #FF8FB1; padding-bottom: 10px; }
+  h2 { color: #C8B6E2; margin-top: 28px; border-bottom: 1px solid #F8D7E3; padding-bottom: 6px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+  td, th { padding: 8px 10px; border: 1px solid #F8D7E3; text-align: left; }
+  th { background: #FFF5F8; }
+  .meta { color: #9B7A8A; font-size: 0.9em; }
+  .plan { background: #FFF8FB; padding: 16px; border-left: 4px solid #FF8FB1; margin: 10px 0; }
+  .cals { font-size: 1.8em; font-weight: bold; color: #E91E63; }
+  .disc { margin-top: 30px; padding: 14px; background: #FFF3E5; border-left: 4px solid #FFD8A8; font-size: 0.85em; color: #4A2C3D; }
+  @media print { body { padding: 15px; } }
+</style></head><body>
+<h1>Twink Fit — Plan Nutricional Personalizado</h1>
+<p class="meta">Generado el ${fecha}</p>
+
+<h2>Datos Personales</h2>
+<table>
+  <tr><th>Género</th><td>${genderTxt}</td><th>Edad</th><td>${r.inputs.age} años</td></tr>
+  <tr><th>Altura</th><td>${r.inputs.height} cm</td><th>Peso</th><td>${r.inputs.weight} kg</td></tr>
+  <tr><th>% Grasa</th><td>${r.inputs.bodyFat}%</td><th>Actividad</th><td>${actTxt}</td></tr>
+  <tr><th>Ritmo objetivo</th><td colspan="3"><strong>${r.inputs.weeklyPace} kg/semana</strong> (ajuste de ±${Math.round(r.bulk.adjust)} kcal/día)</td></tr>
+</table>
+
+<h2>Métricas Principales</h2>
+<table>
+  <tr><th>IMC</th><td>${r.metrics.imc.toFixed(1)}</td><th>Masa Muscular</th><td>${r.metrics.muscleMass.toFixed(1)} kg</td></tr>
+  <tr><th>Grasa Corporal</th><td>${r.metrics.fatMass.toFixed(1)} kg</td><th>BMR</th><td>${Math.round(r.metrics.bmr)} kcal/día</td></tr>
+  <tr><th colspan="3">TDEE (Mantenimiento)</th><td>${Math.round(r.metrics.tdee)} kcal/día</td></tr>
+</table>
+
+<h2>Plan Volumen (+${Math.round(r.bulk.adjust)} kcal/día → +${r.inputs.weeklyPace} kg/sem)</h2>
+<div class="plan">
+  <div class="cals">${Math.round(r.bulk.cals)} kcal/día</div>
+  <table>
+    <tr><th>Macro</th><th>Gramos</th><th>Kcal</th><th>%</th></tr>
+    <tr><td>Proteína</td><td>${Math.round(r.bulk.protein.g)} g</td><td>${Math.round(r.bulk.protein.cal)}</td><td>${r.bulk.protein.pct.toFixed(0)}%</td></tr>
+    <tr><td>Carbohidratos</td><td>${Math.round(r.bulk.carbs.g)} g</td><td>${Math.round(r.bulk.carbs.cal)}</td><td>${r.bulk.carbs.pct.toFixed(0)}%</td></tr>
+    <tr><td>Grasas</td><td>${Math.round(r.bulk.fats.g)} g</td><td>${Math.round(r.bulk.fats.cal)}</td><td>${r.bulk.fats.pct.toFixed(0)}%</td></tr>
+  </table>
+</div>
+
+<h2>Plan Definición ${r.cut.floorHit ? '(piso de seguridad)' : '(-' + Math.round(r.cut.adjust) + ' kcal/día → -' + r.inputs.weeklyPace + ' kg/sem)'}</h2>
+<div class="plan">
+  <div class="cals">${Math.round(r.cut.cals)} kcal/día</div>
+  <table>
+    <tr><th>Macro</th><th>Gramos</th><th>Kcal</th><th>%</th></tr>
+    <tr><td>Proteína</td><td>${Math.round(r.cut.protein.g)} g</td><td>${Math.round(r.cut.protein.cal)}</td><td>${r.cut.protein.pct.toFixed(0)}%</td></tr>
+    <tr><td>Carbohidratos</td><td>${Math.round(r.cut.carbs.g)} g</td><td>${Math.round(r.cut.carbs.cal)}</td><td>${r.cut.carbs.pct.toFixed(0)}%</td></tr>
+    <tr><td>Grasas</td><td>${Math.round(r.cut.fats.g)} g</td><td>${Math.round(r.cut.fats.cal)}</td><td>${r.cut.fats.pct.toFixed(0)}%</td></tr>
+  </table>
+</div>
+
+<div class="disc">
+  <strong>Aviso legal:</strong> Esta información es de carácter educativo y se basa en fórmulas científicas reconocidas (Mifflin-St Jeor). No sustituye la asesoría de un profesional de salud o nutricionista certificado. Consulta siempre con un especialista antes de iniciar cualquier plan dietético.
+</div>
+</body></html>`;
+}
+</script>
+</body>
+</html>
