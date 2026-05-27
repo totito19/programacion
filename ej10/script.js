@@ -16,7 +16,7 @@ let btnCambiarImagen = document.getElementById("btnCambiarImagen");
 let imagen = document.getElementById("imagen");
 
 btnCambiarImagen.addEventListener("click", function() {
-    imagen.src = "https://picsum.photos/id/1025/300/200";
+    imagen.src = "labubu 2.webp";
 });
 
 let btnMostrarMensaje = document.getElementById("btnMostrarMensaje");
