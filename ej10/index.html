@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Ejercicio 10</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1 id="titulo">Práctica de DOM con JavaScript</h1>
+        <p>Trabajo de manipulación del DOM</p>
+    </header>
+    <main>
+        <div class="bloque">
+            <h3 id="tituloCambiable">Este es el título original</h3>
+            <button id="btnCambiarTitulo">Cambiar título</button>
+        </div>
+        <div class="bloque">
+            <p id="parrafoCambiable">Este es el párrafo original.</p>
+            <button id="btnCambiarParrafo">Cambiar párrafo</button>
+        </div>
+        <div class="bloque">
+            <img id="imagen" src="https://picsum.photos/id/1015/300/200" alt="imagen">
+            <br>
+            <button id="btnCambiarImagen">Cambiar imagen</button>
+        </div>
+
+        <div class="bloque">
+            <input type="text" id="inputMensaje" placeholder="Escribí algo">
+            <button id="btnMostrarMensaje">Mostrar en alert</button>
+        </div>
+
+        <div class="bloque">
+            <p id="textoClase">Texto al que se le puede agregar o quitar una clase</p>
+            <button id="btnAgregarClase">Agregar clase</button>
+            <button id="btnQuitarClase">Quitar clase</button>
+        </div>
+
+        <div class="bloque">
+            <button id="btnModoOscuro">Modo oscuro</button>
+        </div>
+
+        <div class="bloque">
+            <h3>Lista</h3>
+            <ul id="lista">
+                <li>Elemento inicial</li>
+            </ul>
+            <input type="text" id="inputLista" placeholder="Nuevo elemento">
+            <button id="btnAgregarLista">Agregar a la lista</button>
+        </div>
+
+        <div class="bloque">
+            <form id="formulario">
+                <label>Nombre:</label>
+                <input type="text" id="nombre">
+
+                <label>Color favorito:</label>
+                <input type="text" id="color" placeholder="Ej: red, blue, #ff00aa">
+
+                <label>Mensaje:</label>
+                <textarea id="mensaje"></textarea>
+
+                <button type="submit">Enviar</button>
+            </form>
+
+            <p id="errores"></p>
+
+            <div id="resultado"></div>
+
+            <div id="tarjetas"></div>
+        </div>
+
+    </main>
+    <script src="script.js"></script>
+</body>
+</html>
