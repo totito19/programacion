@@ -1,0 +1,62 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background-color: #ffffff;
+    color: #000000;
+}
+body.oscuro {
+    background-color: #1e1e1e;
+
+    color: #f0f0f0;
+}
+body.oscuro .tarjeta {
+    border-color: #f0f0f0;
+}
+#error {
+    color: red;
+}
+
+form input,
+form select,
+form button {
+    margin: 5px;
+    padding: 5px;
+}
+#filtros {
+    margin: 15px 0;
+}
+#filtros button {
+    margin: 3px;
+    padding: 5px 10px;
+}
+.tarjeta {
+    border: 1px solid black;
+    padding: 10px;
+
+    margin: 10px;
+    display: inline-block;
+    text-align: center;
+    width: 220px;
+    vertical-align: top;
+}
+.tarjeta img {
+    width: 200px;
+    height: 200px;
+    object-fit: cover;
+}
+.tarjeta button {
+    margin: 3px;
+}
+
+.titulo {
+    cursor: pointer;
+}
+.titulo.resaltado {
+    color: #e11d48;
+    text-decoration: underline;
+    font-size: 24px;
+}
+#cambiarModo {
+    float: right;
+    padding: 8px 15px;
+}

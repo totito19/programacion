@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Mi colección favorita</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>Mi colección favorita</h1>
+    <p>Guardá tus videojuegos, películas y series favoritas. Agregalos, cambiá su estado y filtralos según lo que quieras ver.</p>
+    <button id="cambiarModo">Cambiar modo</button>
+    <form id="formulario">
+        <input type="text" id="nombre" placeholder="Nombre">
+
+        <input type="text" id="descripcion" placeholder="Descripción breve">
+        <select id="tipo">
+            <option value="videojuego">Videojuego</option>
+            <option value="pelicula">Película</option>
+
+            <option value="serie">Serie</option>
+            <option value="otro">Otro</option>
+        </select>
+        <select id="estado">
+            <option value="pendiente">Pendiente</option>
+            <option value="en progreso">En progreso</option>
+            <option value="terminado">Terminado</option>
+        </select>
+        <input type="number" id="calificacion" placeholder="Calificación (1-5)" min="1" max="5">
+        <input type="text" id="imagen" placeholder="URL de la imagen">
+        <button type="submit">Agregar</button>
+    </form>
+    <p id="error"></p>
+
+    <p>Elementos agregados: <span id="contador">0</span></p>
+    <div id="filtros">
+        <button data-filtro="todos">Todos</button>
+        <button data-filtro="videojuego">Videojuegos</button>
+        <button data-filtro="pelicula">Películas</button>
+        <button data-filtro="serie">Series</button>
+
+        <button data-filtro="otro">Otros</button>
+        <button data-filtro="pendiente">Pendientes</button>
+        <button data-filtro="en progreso">En progreso</button>
+        <button data-filtro="terminado">Terminados</button>
+    </div>
+    <div id="coleccion"></div>
+    <script src="script.js"></script>
+</body>
+</html>
